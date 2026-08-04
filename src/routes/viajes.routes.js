@@ -71,7 +71,7 @@ router.get(
       DATE_FORMAT(v.fecha_salida, '%Y-%m-%d') AS fechaSalida,
       DATE_FORMAT(v.fecha_regreso, '%Y-%m-%d') AS fechaRegreso,
       v.moneda_principal AS monedaPrincipal, v.estado,(v.id_usuario=?) AS esPropietaria,
-      COALESCE(cv.rol,'PROPIETARIA') AS rolAcceso,
+      COALESCE(MAX(cv.rol),'PROPIETARIA') AS rolAcceso,
       COUNT(p.id_participante) AS cantidadParticipantes
      FROM viajes v LEFT JOIN participantes p ON p.id_viaje = v.id_viaje AND p.activo = TRUE
      LEFT JOIN colaboradores_viaje cv ON cv.id_viaje=v.id_viaje AND cv.id_usuario=?
