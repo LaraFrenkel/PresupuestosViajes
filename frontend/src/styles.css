@@ -2143,9 +2143,24 @@ select {
 
 .collaborator-form {
   display: grid;
-  grid-template-columns: 1fr auto;
+  grid-template-columns: minmax(180px, 1fr) minmax(150px, auto) auto;
   gap: 0.7rem;
   margin: 1rem 0;
+}
+
+.role-select {
+  min-width: 135px;
+}
+
+.read-only-badge {
+  display: inline-flex;
+  margin-left: 0.5rem;
+  padding: 0.25rem 0.55rem;
+  border-radius: 999px;
+  background: #fff4cc;
+  color: #725b00;
+  font-size: 0.78rem;
+  font-weight: 700;
 }
 
 .collaborator-list > div {

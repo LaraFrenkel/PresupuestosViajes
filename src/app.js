@@ -10,7 +10,7 @@ import participantesRoutes from "./routes/participantes.routes.js";
 import cotizacionesRoutes from "./routes/cotizaciones.routes.js";
 import presupuestosRoutes from "./routes/presupuestos.routes.js";
 import finanzasRoutes from "./routes/finanzas.routes.js";
-import { versionarMutacion } from "./middleware/sync.js";
+import { requerirEdicionViaje, versionarMutacion } from "./middleware/sync.js";
 
 export const app = express();
 app.use(helmet());
@@ -19,7 +19,12 @@ app.use(express.json({ limit: "1mb" }));
 
 app.get("/api/salud", (_req, res) => res.json({ estado: "ok" }));
 app.use("/api/auth", authRoutes);
-app.use("/api/viajes/:idViaje", requerirAutenticacion, versionarMutacion);
+app.use(
+  "/api/viajes/:idViaje",
+  requerirAutenticacion,
+  requerirEdicionViaje,
+  versionarMutacion,
+);
 app.use(
   "/api/viajes/:idViaje/cotizaciones",
   requerirAutenticacion,

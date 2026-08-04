@@ -35,18 +35,20 @@ const colaborador = z.object({
     .email()
     .max(150)
     .transform((value) => value.toLowerCase()),
+  rol: z.enum(["EDITOR", "LECTOR"]).default("EDITOR"),
 });
 
 export async function obtenerViaje(idViaje, idUsuario) {
   const [rows] = await pool.execute(
-    `SELECT id_viaje AS idViaje, nombre, tipo_viaje AS tipoViaje, naviera, barco,
-      puerto_salida AS puertoSalida, DATE_FORMAT(fecha_salida, '%Y-%m-%d') AS fechaSalida,
-      DATE_FORMAT(fecha_regreso, '%Y-%m-%d') AS fechaRegreso,
-      moneda_principal AS monedaPrincipal, estado, itinerario,(v.id_usuario=?) AS esPropietaria
-     FROM viajes v WHERE id_viaje = ? AND (id_usuario = ? OR EXISTS (
-       SELECT 1 FROM colaboradores_viaje cv WHERE cv.id_viaje=v.id_viaje AND cv.id_usuario=?
-     ))`,
-    [idUsuario, idViaje, idUsuario, idUsuario],
+    `SELECT v.id_viaje AS idViaje, v.nombre, v.tipo_viaje AS tipoViaje, v.naviera, v.barco,
+      v.puerto_salida AS puertoSalida, DATE_FORMAT(v.fecha_salida, '%Y-%m-%d') AS fechaSalida,
+      DATE_FORMAT(v.fecha_regreso, '%Y-%m-%d') AS fechaRegreso,
+      v.moneda_principal AS monedaPrincipal, v.estado, v.itinerario,(v.id_usuario=?) AS esPropietaria,
+      COALESCE(cv.rol,'PROPIETARIA') AS rolAcceso
+     FROM viajes v LEFT JOIN colaboradores_viaje cv
+       ON cv.id_viaje=v.id_viaje AND cv.id_usuario=?
+     WHERE v.id_viaje = ? AND (v.id_usuario = ? OR cv.id_usuario IS NOT NULL)`,
+    [idUsuario, idUsuario, idViaje, idUsuario],
   );
   if (!rows[0]) throw new AppError(404, "Viaje no encontrado.");
   return rows[0];
@@ -69,11 +71,12 @@ router.get(
       DATE_FORMAT(v.fecha_salida, '%Y-%m-%d') AS fechaSalida,
       DATE_FORMAT(v.fecha_regreso, '%Y-%m-%d') AS fechaRegreso,
       v.moneda_principal AS monedaPrincipal, v.estado,(v.id_usuario=?) AS esPropietaria,
+      COALESCE(cv.rol,'PROPIETARIA') AS rolAcceso,
       COUNT(p.id_participante) AS cantidadParticipantes
      FROM viajes v LEFT JOIN participantes p ON p.id_viaje = v.id_viaje AND p.activo = TRUE
-     WHERE v.id_usuario = ? OR EXISTS (
-       SELECT 1 FROM colaboradores_viaje cv WHERE cv.id_viaje=v.id_viaje AND cv.id_usuario=?
-     ) GROUP BY v.id_viaje ORDER BY v.fecha_salida`,
+     LEFT JOIN colaboradores_viaje cv ON cv.id_viaje=v.id_viaje AND cv.id_usuario=?
+     WHERE v.id_usuario = ? OR cv.id_usuario IS NOT NULL
+     GROUP BY v.id_viaje ORDER BY v.fecha_salida`,
       [req.usuario.idUsuario, req.usuario.idUsuario, req.usuario.idUsuario],
     );
     res.json(rows);
@@ -183,10 +186,28 @@ router.post(
     if (Number(usuarios[0].idUsuario) === Number(req.usuario.idUsuario))
       throw new AppError(409, "Ya sos la propietaria de este viaje.");
     await pool.execute(
-      "INSERT INTO colaboradores_viaje (id_viaje,id_usuario,rol) VALUES (?,?,'EDITOR') ON DUPLICATE KEY UPDATE rol='EDITOR'",
-      [req.params.idViaje, usuarios[0].idUsuario],
+      "INSERT INTO colaboradores_viaje (id_viaje,id_usuario,rol) VALUES (?,?,?) ON DUPLICATE KEY UPDATE rol=VALUES(rol)",
+      [req.params.idViaje, usuarios[0].idUsuario, req.body.rol],
     );
-    res.status(201).json({ ...usuarios[0], rol: "EDITOR" });
+    res.status(201).json({ ...usuarios[0], rol: req.body.rol });
+  }),
+);
+
+router.patch(
+  "/:idViaje/colaboradores/:idUsuario",
+  validar(z.object({ rol: z.enum(["EDITOR", "LECTOR"]) })),
+  asyncHandler(async (req, res) => {
+    await exigirPropietario(req.params.idViaje, req.usuario.idUsuario);
+    const [result] = await pool.execute(
+      "UPDATE colaboradores_viaje SET rol=? WHERE id_viaje=? AND id_usuario=?",
+      [req.body.rol, req.params.idViaje, req.params.idUsuario],
+    );
+    if (!result.affectedRows)
+      throw new AppError(404, "Colaboradora no encontrada.");
+    res.json({
+      idUsuario: Number(req.params.idUsuario),
+      rol: req.body.rol,
+    });
   }),
 );
 

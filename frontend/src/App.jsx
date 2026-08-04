@@ -304,6 +304,7 @@ function ViajeForm({ inicial, onSave, onCancel, onDelete }) {
 function ColaboradoresViaje({ viaje }) {
   const [data, setData] = useState(null);
   const [email, setEmail] = useState("");
+  const [rol, setRol] = useState("EDITOR");
   const [error, setError] = useState("");
 
   async function cargar() {
@@ -322,9 +323,10 @@ function ColaboradoresViaje({ viaje }) {
     try {
       await api(`/viajes/${viaje.idViaje}/colaboradores`, {
         method: "POST",
-        body: JSON.stringify({ email }),
+        body: JSON.stringify({ email, rol }),
       });
       setEmail("");
+      setRol("EDITOR");
       await cargar();
     } catch (e) {
       setError(e.message);
@@ -336,6 +338,18 @@ function ColaboradoresViaje({ viaje }) {
     try {
       await api(`/viajes/${viaje.idViaje}/colaboradores/${persona.idUsuario}`, {
         method: "DELETE",
+      });
+      await cargar();
+    } catch (e) {
+      setError(e.message);
+    }
+  }
+
+  async function cambiarRol(persona, nuevoRol) {
+    try {
+      await api(`/viajes/${viaje.idViaje}/colaboradores/${persona.idUsuario}`, {
+        method: "PATCH",
+        body: JSON.stringify({ rol: nuevoRol }),
       });
       await cargar();
     } catch (e) {
@@ -369,6 +383,14 @@ function ColaboradoresViaje({ viaje }) {
               }
             }}
           />
+          <select
+            value={rol}
+            onChange={(e) => setRol(e.target.value)}
+            aria-label="Permiso de la colaboradora"
+          >
+            <option value="EDITOR">Puede editar</option>
+            <option value="LECTOR">Solo lectura</option>
+          </select>
           <button type="button" className="button secondary" onClick={agregar}>
             Dar acceso
           </button>
@@ -383,7 +405,23 @@ function ColaboradoresViaje({ viaje }) {
               <strong>{persona.nombre}</strong>
               <small>{persona.email}</small>
             </div>
-            <span className="status">{persona.rol}</span>
+            {persona.rol === "PROPIETARIA" ? (
+              <span className="status">Propietaria</span>
+            ) : data.puedeAdministrar ? (
+              <select
+                className="role-select"
+                value={persona.rol}
+                onChange={(e) => cambiarRol(persona, e.target.value)}
+                aria-label={`Permiso de ${persona.nombre}`}
+              >
+                <option value="EDITOR">Puede editar</option>
+                <option value="LECTOR">Solo lectura</option>
+              </select>
+            ) : (
+              <span className="status">
+                {persona.rol === "EDITOR" ? "Puede editar" : "Solo lectura"}
+              </span>
+            )}
             {data.puedeAdministrar && persona.rol !== "PROPIETARIA" && (
               <button
                 type="button"
@@ -3671,7 +3709,9 @@ function Dashboard({ usuario, onLogout }) {
   }
   if (seleccionado)
     return (
-      <div className="app-shell">
+      <div
+        className={`app-shell ${seleccionado.rolAcceso === "LECTOR" ? "solo-lectura" : ""}`}
+      >
         <Header usuario={usuario} onLogout={salir} />
         <main className="content">
           <button
@@ -3688,6 +3728,9 @@ function Dashboard({ usuario, onLogout }) {
               <span className={`status ${seleccionado.estado.toLowerCase()}`}>
                 {estadoTexto[seleccionado.estado]}
               </span>
+              {seleccionado.rolAcceso === "LECTOR" && (
+                <span className="read-only-badge">Solo lectura</span>
+              )}
               <h1>{seleccionado.nombre}</h1>
               <p>
                 {seleccionado.puertoSalida || "Puerto por definir"} ·{" "}
@@ -3695,15 +3738,17 @@ function Dashboard({ usuario, onLogout }) {
               </p>
               <EstadoSincronizacion viaje={seleccionado} />
             </div>
-            <button
-              className="button light"
-              onClick={() => {
-                setEditando(seleccionado);
-                setFormVisible(true);
-              }}
-            >
-              Editar viaje
-            </button>
+            {seleccionado.rolAcceso !== "LECTOR" && (
+              <button
+                className="button light"
+                onClick={() => {
+                  setEditando(seleccionado);
+                  setFormVisible(true);
+                }}
+              >
+                Editar viaje
+              </button>
+            )}
           </section>
           <nav className="trip-nav" aria-label="Secciones del viaje">
             <button
