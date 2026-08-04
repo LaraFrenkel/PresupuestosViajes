@@ -318,8 +318,7 @@ function ColaboradoresViaje({ viaje }) {
     cargar();
   }, [viaje.idViaje]);
 
-  async function agregar(e) {
-    e.preventDefault();
+  async function agregar() {
     try {
       await api(`/viajes/${viaje.idViaje}/colaboradores`, {
         method: "POST",
@@ -355,7 +354,7 @@ function ColaboradoresViaje({ viaje }) {
         </p>
       </div>
       {data?.puedeAdministrar && (
-        <form className="collaborator-form" onSubmit={agregar}>
+        <div className="collaborator-form">
           <input
             required
             type="email"
@@ -363,9 +362,17 @@ function ColaboradoresViaje({ viaje }) {
             onChange={(e) => setEmail(e.target.value)}
             placeholder="correo@ejemplo.com"
             aria-label="Correo de la colaboradora"
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                agregar();
+              }
+            }}
           />
-          <button className="button secondary">Dar acceso</button>
-        </form>
+          <button type="button" className="button secondary" onClick={agregar}>
+            Dar acceso
+          </button>
+        </div>
       )}
       {error && <div className="alert">{error}</div>}
       <div className="collaborator-list">
@@ -3915,7 +3922,9 @@ function EstadoSincronizacion({ viaje }) {
     try {
       const resultado = await sincronizarViaje(viaje.idViaje, forzar);
       if (resultado.conflicto) {
-        setError("Otra colaboradora modificó el viaje antes de tu sincronización.");
+        setError(
+          "Otra colaboradora modificó el viaje antes de tu sincronización.",
+        );
         await cargar();
       } else if (resultado.sincronizadas) {
         window.location.reload();
@@ -3944,11 +3953,11 @@ function EstadoSincronizacion({ viaje }) {
       <span>
         {conflicto
           ? "Conflicto de sincronización"
-            : pendientes.length
-              ? `${pendientes.length} cambio(s) pendiente(s)`
-              : navigator.onLine
-                ? "Sincronizado"
-                : "Copia local"}
+          : pendientes.length
+            ? `${pendientes.length} cambio(s) pendiente(s)`
+            : navigator.onLine
+              ? "Sincronizado"
+              : "Copia local"}
       </span>
       {estado?.ultimoUsuario && !pendientes.length && (
         <small>Último cambio: {estado.ultimoUsuario}</small>
