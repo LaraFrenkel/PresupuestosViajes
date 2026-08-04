@@ -321,6 +321,27 @@ textarea:focus {
   border-radius: 6px;
   background: #fff8f5;
 }
+.device-data {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin: 0 clamp(1.25rem, 4vw, 2rem) 1rem;
+  padding: 1.25rem;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #f7f8f4;
+}
+.device-data h3 {
+  margin: 0 0 0.3rem;
+  padding: 0;
+  border: 0;
+}
+.device-data p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
 .delete-account .profile-option {
   margin: 0;
   padding: 0;
@@ -549,6 +570,10 @@ textarea:focus {
   }
   .delete-account .danger-button {
     width: 100%;
+  }
+  .device-data {
+    align-items: stretch;
+    flex-direction: column;
   }
 }
 .user-avatar,

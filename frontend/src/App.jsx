@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { api } from "./api.js";
-import { listarOperaciones } from "./offline-db.js";
+import { borrarDatosLocales, listarOperaciones } from "./offline-db.js";
 import { descartarPendientes, sincronizarViaje } from "./sync.js";
 
 const viajeVacio = {
@@ -3702,7 +3702,8 @@ function Dashboard({ usuario, onLogout, onUsuarioUpdate, onAdmin }) {
     setSeleccionado(v);
     window.scrollTo({ top: 0, behavior: "instant" });
   }
-  function salir() {
+  async function salir() {
+    await borrarDatosLocales().catch(() => undefined);
     localStorage.removeItem("token");
     localStorage.removeItem("usuario");
     onLogout();
@@ -4197,6 +4198,31 @@ function PerfilUsuario({ usuario, onClose, onUpdate, onDelete }) {
             </button>
           </div>
         </form>
+        <div className="device-data">
+          <div>
+            <h3>Datos de este dispositivo</h3>
+            <p>
+              Borra las copias offline de este celular sin eliminar informaciÃ³n
+              de la cuenta.
+            </p>
+          </div>
+          <button
+            type="button"
+            className="button ghost"
+            onClick={async () => {
+              try {
+                await borrarDatosLocales();
+                alert(
+                  "Los datos offline de este dispositivo fueron eliminados.",
+                );
+              } catch (e) {
+                setError(e.message);
+              }
+            }}
+          >
+            Borrar datos del dispositivo
+          </button>
+        </div>
         <div className="delete-account">
           <button
             type="button"
@@ -4245,6 +4271,7 @@ function PerfilUsuario({ usuario, onClose, onUpdate, onDelete }) {
 function PanelAdministracion({ usuario, onViajes, onLogout }) {
   const [usuarios, setUsuarios] = useState([]);
   const [acciones, setAcciones] = useState([]);
+  const [eventosSeguridad, setEventosSeguridad] = useState([]);
   const [busqueda, setBusqueda] = useState("");
   const [gestion, setGestion] = useState(null);
   const [motivo, setMotivo] = useState("");
@@ -4261,12 +4288,14 @@ function PanelAdministracion({ usuario, onViajes, onLogout }) {
 
   async function cargar() {
     try {
-      const [lista, historial] = await Promise.all([
+      const [lista, historial, seguridad] = await Promise.all([
         api("/admin/usuarios"),
         api("/admin/acciones"),
+        api("/admin/seguridad"),
       ]);
       setUsuarios(lista);
       setAcciones(historial);
+      setEventosSeguridad(seguridad);
       setError("");
     } catch (e) {
       setError(e.message);
@@ -4498,6 +4527,33 @@ function PanelAdministracion({ usuario, onViajes, onLogout }) {
             <p className="empty-copy">
               Todavía no se realizaron cambios de acceso.
             </p>
+          )}
+        </section>
+        <section className="panel admin-history security-events">
+          <h2>Alertas de seguridad</h2>
+          <p className="empty-copy">
+            Intentos fallidos y bloqueos temporales recientes.
+          </p>
+          {eventosSeguridad.length ? (
+            eventosSeguridad.map((evento) => (
+              <div key={evento.idEvento}>
+                <span
+                  className={`status ${evento.tipo === "BLOQUEO_TEMPORAL" ? "blocked-badge" : ""}`}
+                >
+                  {evento.tipo === "BLOQUEO_TEMPORAL"
+                    ? "Bloqueo temporal"
+                    : "Intento fallido"}
+                </span>
+                <div>
+                  <strong>{evento.usuarioNombre || evento.email}</strong>
+                  <small>IP: {evento.ip || "No disponible"}</small>
+                  <p>{evento.detalle}</p>
+                </div>
+                <small>{fecha(evento.creadoEn)}</small>
+              </div>
+            ))
+          ) : (
+            <p className="empty-copy">No hay alertas recientes.</p>
           )}
         </section>
         <section className="panel admin-maintenance">
@@ -4868,7 +4924,8 @@ export default function App() {
   function actualizarUsuario(usuario) {
     setSesion((actual) => ({ ...actual, usuario }));
   }
-  function cerrarSesion() {
+  async function cerrarSesion() {
+    await borrarDatosLocales().catch(() => undefined);
     localStorage.removeItem("token");
     localStorage.removeItem("usuario");
     setVista("viajes");

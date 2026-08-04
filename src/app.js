@@ -15,8 +15,10 @@ import presupuestosRoutes from "./routes/presupuestos.routes.js";
 import finanzasRoutes from "./routes/finanzas.routes.js";
 import adminRoutes from "./routes/admin.routes.js";
 import { requerirEdicionViaje, versionarMutacion } from "./middleware/sync.js";
+import { limitarAdministracion } from "./middleware/rate-limit.js";
 
 export const app = express();
+app.set("trust proxy", 1);
 app.use(helmet());
 app.use(cors({ origin: config.frontendUrl }));
 app.use(express.json({ limit: "1mb" }));
@@ -27,6 +29,7 @@ app.use(
   "/api/admin",
   requerirAutenticacion,
   requerirAdministrador,
+  limitarAdministracion,
   adminRoutes,
 );
 app.use(
