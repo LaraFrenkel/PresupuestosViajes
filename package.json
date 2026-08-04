@@ -12,7 +12,8 @@
     "test": "node --test",
     "test:flow": "node test/flujo-integral.js",
     "test:schema": "node test/instalacion-schema.js",
-    "db:init": "node scripts/init-db.js"
+    "db:init": "node scripts/init-db.js",
+    "db:clean-users": "node scripts/clean-users.js"
   },
   "dependencies": {
     "bcryptjs": "^3.0.2",
