@@ -4248,6 +4248,7 @@ function PanelAdministracion({ usuario, onViajes, onLogout }) {
   const [busqueda, setBusqueda] = useState("");
   const [gestion, setGestion] = useState(null);
   const [motivo, setMotivo] = useState("");
+  const [emailConfirmacion, setEmailConfirmacion] = useState("");
   const [error, setError] = useState("");
   const [cargando, setCargando] = useState(true);
 
@@ -4274,12 +4275,20 @@ function PanelAdministracion({ usuario, onViajes, onLogout }) {
   async function cambiarAcceso(event) {
     event.preventDefault();
     try {
-      await api(`/admin/usuarios/${gestion.idUsuario}/acceso`, {
-        method: "PATCH",
-        body: JSON.stringify({ accion: gestion.accion, motivo }),
-      });
+      if (gestion.accion === "ELIMINAR") {
+        await api(`/admin/usuarios/${gestion.idUsuario}`, {
+          method: "DELETE",
+          body: JSON.stringify({ motivo, emailConfirmacion }),
+        });
+      } else {
+        await api(`/admin/usuarios/${gestion.idUsuario}/acceso`, {
+          method: "PATCH",
+          body: JSON.stringify({ accion: gestion.accion, motivo }),
+        });
+      }
       setGestion(null);
       setMotivo("");
+      setEmailConfirmacion("");
       await cargar();
     } catch (e) {
       setError(e.message);
@@ -4381,21 +4390,39 @@ function PanelAdministracion({ usuario, onViajes, onLogout }) {
                     </div>
                     <div>
                       {!propia && (
-                        <button
-                          type="button"
-                          className={`button ${persona.activo ? "danger-button" : "secondary"}`}
-                          onClick={() => {
-                            setGestion({
-                              ...persona,
-                              accion: persona.activo ? "BLOQUEAR" : "RESTAURAR",
-                            });
-                            setMotivo("");
-                          }}
-                        >
-                          {persona.activo
-                            ? "Bloquear acceso"
-                            : "Restaurar acceso"}
-                        </button>
+                        <div className="admin-user-actions">
+                          <button
+                            type="button"
+                            className={`button ${persona.activo ? "danger-button" : "secondary"}`}
+                            onClick={() => {
+                              setGestion({
+                                ...persona,
+                                accion: persona.activo
+                                  ? "BLOQUEAR"
+                                  : "RESTAURAR",
+                              });
+                              setMotivo("");
+                              setEmailConfirmacion("");
+                            }}
+                          >
+                            {persona.activo
+                              ? "Bloquear acceso"
+                              : "Restaurar acceso"}
+                          </button>
+                          {!persona.activo && persona.rol !== "ADMIN" && (
+                            <button
+                              type="button"
+                              className="text-button danger"
+                              onClick={() => {
+                                setGestion({ ...persona, accion: "ELIMINAR" });
+                                setMotivo("");
+                                setEmailConfirmacion("");
+                              }}
+                            >
+                              Eliminar definitivamente
+                            </button>
+                          )}
+                        </div>
                       )}
                       {propia && <small>Tu cuenta</small>}
                     </div>
@@ -4413,7 +4440,11 @@ function PanelAdministracion({ usuario, onViajes, onLogout }) {
                 <span
                   className={`status ${accion.accion === "BLOQUEAR" ? "blocked-badge" : ""}`}
                 >
-                  {accion.accion === "BLOQUEAR" ? "Bloqueo" : "Restauración"}
+                  {accion.accion === "BLOQUEAR"
+                    ? "Bloqueo"
+                    : accion.accion === "ELIMINAR"
+                      ? "Eliminación"
+                      : "Restauración"}
                 </span>
                 <div>
                   <strong>{accion.usuarioNombre || "Usuario eliminado"}</strong>
@@ -4439,14 +4470,32 @@ function PanelAdministracion({ usuario, onViajes, onLogout }) {
           >
             <p className="eyebrow">Administrar acceso</p>
             <h2>
-              {gestion.accion === "BLOQUEAR" ? "Bloquear" : "Restaurar"} a{" "}
-              {gestion.nombre}
+              {gestion.accion === "BLOQUEAR"
+                ? "Bloquear"
+                : gestion.accion === "ELIMINAR"
+                  ? "Eliminar"
+                  : "Restaurar"}{" "}
+              a {gestion.nombre}
             </h2>
             <p>
               {gestion.accion === "BLOQUEAR"
                 ? "La persona perderá el acceso inmediatamente, incluso si ya inició sesión."
-                : "La persona podrá volver a iniciar sesión y usar la aplicación."}
+                : gestion.accion === "ELIMINAR"
+                  ? `Se eliminarán definitivamente la cuenta y sus ${gestion.cantidadViajes} viajes. Esta acción no se puede deshacer.`
+                  : "La persona podrá volver a iniciar sesión y usar la aplicación."}
             </p>
+            {gestion.accion === "ELIMINAR" && (
+              <label>
+                Escribí {gestion.email} para confirmar
+                <input
+                  required
+                  type="email"
+                  value={emailConfirmacion}
+                  onChange={(event) => setEmailConfirmacion(event.target.value)}
+                  autoComplete="off"
+                />
+              </label>
+            )}
             <label>
               Motivo
               <textarea
@@ -4468,9 +4517,11 @@ function PanelAdministracion({ usuario, onViajes, onLogout }) {
               </button>
               <button
                 type="submit"
-                className={`button ${gestion.accion === "BLOQUEAR" ? "danger-button" : "secondary"}`}
+                className={`button ${gestion.accion === "RESTAURAR" ? "secondary" : "danger-button"}`}
               >
-                Confirmar
+                {gestion.accion === "ELIMINAR"
+                  ? "Eliminar definitivamente"
+                  : "Confirmar"}
               </button>
             </div>
           </form>

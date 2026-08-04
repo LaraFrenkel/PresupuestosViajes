@@ -57,6 +57,22 @@ try {
       );
     }
   }
+  const columnasAcciones = [
+    ["usuario_nombre", "VARCHAR(100) NULL AFTER motivo"],
+    ["usuario_email", "VARCHAR(150) NULL AFTER usuario_nombre"],
+  ];
+  for (const [columna, definicion] of columnasAcciones) {
+    const [existente] = await connection.execute(
+      `SELECT 1 FROM information_schema.COLUMNS
+       WHERE TABLE_SCHEMA=? AND TABLE_NAME='acciones_admin' AND COLUMN_NAME=?`,
+      [baseActual, columna],
+    );
+    if (!existente.length) {
+      await connection.query(
+        `ALTER TABLE acciones_admin ADD COLUMN ${columna} ${definicion}`,
+      );
+    }
+  }
   const administradores = (process.env.ADMIN_EMAILS ?? "")
     .split(",")
     .map((email) => email.trim().toLowerCase())

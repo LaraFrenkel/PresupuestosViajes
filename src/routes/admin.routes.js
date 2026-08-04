@@ -26,8 +26,9 @@ router.get(
   asyncHandler(async (_req, res) => {
     const [acciones] = await pool.execute(
       `SELECT a.id_accion AS idAccion,a.accion,a.motivo,a.creado_en AS creadoEn,
-       admin.nombre AS adminNombre,afectado.nombre AS usuarioNombre,
-       afectado.email AS usuarioEmail
+       admin.nombre AS adminNombre,
+       COALESCE(afectado.nombre,a.usuario_nombre) AS usuarioNombre,
+       COALESCE(afectado.email,a.usuario_email) AS usuarioEmail
        FROM acciones_admin a
        LEFT JOIN usuarios admin ON admin.id_usuario=a.id_admin
        LEFT JOIN usuarios afectado ON afectado.id_usuario=a.id_usuario
@@ -73,15 +74,91 @@ router.patch(
         ],
       );
       await connection.execute(
-        `INSERT INTO acciones_admin (id_admin,id_usuario,accion,motivo)
-         VALUES (?,?,?,?)`,
-        [req.usuario.idUsuario, idUsuario, req.body.accion, req.body.motivo],
+        `INSERT INTO acciones_admin
+         (id_admin,id_usuario,accion,motivo,usuario_nombre,usuario_email)
+         SELECT ?,id_usuario,?,?,nombre,email FROM usuarios WHERE id_usuario=?`,
+        [req.usuario.idUsuario, req.body.accion, req.body.motivo, idUsuario],
       );
       await connection.commit();
       res.json({
         idUsuario,
         activo: !bloquear,
         motivoBloqueo: bloquear ? req.body.motivo : null,
+      });
+    } catch (error) {
+      await connection.rollback();
+      throw error;
+    } finally {
+      connection.release();
+    }
+  }),
+);
+
+router.delete(
+  "/usuarios/:idUsuario",
+  validar(
+    z.object({
+      emailConfirmacion: z
+        .email()
+        .max(150)
+        .transform((email) => email.toLowerCase()),
+      motivo: z.string().trim().min(5).max(300),
+    }),
+  ),
+  asyncHandler(async (req, res) => {
+    const idUsuario = Number(req.params.idUsuario);
+    if (idUsuario === req.usuario.idUsuario) {
+      throw new AppError(409, "No podés eliminar tu propia cuenta.");
+    }
+    const connection = await pool.getConnection();
+    try {
+      await connection.beginTransaction();
+      const [usuarios] = await connection.execute(
+        `SELECT id_usuario AS idUsuario,nombre,email,rol,activo
+         FROM usuarios WHERE id_usuario=? FOR UPDATE`,
+        [idUsuario],
+      );
+      const usuario = usuarios[0];
+      if (!usuario) throw new AppError(404, "Usuario no encontrado.");
+      if (usuario.rol === "ADMIN") {
+        throw new AppError(
+          409,
+          "No se puede eliminar otra cuenta administradora.",
+        );
+      }
+      if (usuario.activo) {
+        throw new AppError(
+          409,
+          "Primero tenés que bloquear el acceso de esta cuenta.",
+        );
+      }
+      if (usuario.email.toLowerCase() !== req.body.emailConfirmacion) {
+        throw new AppError(400, "El correo de confirmación no coincide.");
+      }
+      const [viajes] = await connection.execute(
+        "SELECT COUNT(*) AS cantidad FROM viajes WHERE id_usuario=?",
+        [idUsuario],
+      );
+      await connection.execute(
+        `INSERT INTO acciones_admin
+         (id_admin,id_usuario,accion,motivo,usuario_nombre,usuario_email)
+         VALUES (?,?,?,?,?,?)`,
+        [
+          req.usuario.idUsuario,
+          idUsuario,
+          "ELIMINAR",
+          req.body.motivo,
+          usuario.nombre,
+          usuario.email,
+        ],
+      );
+      await connection.execute("DELETE FROM usuarios WHERE id_usuario=?", [
+        idUsuario,
+      ]);
+      await connection.commit();
+      res.json({
+        eliminado: true,
+        cantidadViajesEliminados: Number(viajes[0].cantidad),
       });
     } catch (error) {
       await connection.rollback();
