@@ -1,10 +1,40 @@
 import { Router } from "express";
 import { z } from "zod";
+import bcrypt from "bcryptjs";
 import { pool } from "../db.js";
 import { AppError, asyncHandler } from "../errors.js";
 import { validar } from "../validation.js";
 
 const router = Router();
+
+async function obtenerVistaLimpieza(
+  connection,
+  idConservado,
+  bloquear = false,
+) {
+  const [cuentas] = await connection.execute(
+    `SELECT id_usuario AS idUsuario FROM usuarios WHERE id_usuario<>?${bloquear ? " FOR UPDATE" : ""}`,
+    [idConservado],
+  );
+  const ids = cuentas.map((cuenta) => cuenta.idUsuario);
+  let cantidadViajes = 0;
+  if (ids.length) {
+    const [viajes] = await connection.query(
+      "SELECT COUNT(*) AS cantidad FROM viajes WHERE id_usuario IN (?)",
+      [ids],
+    );
+    cantidadViajes = Number(viajes[0].cantidad);
+  }
+  const [historial] = await connection.execute(
+    "SELECT COUNT(*) AS cantidad FROM acciones_admin",
+  );
+  return {
+    ids,
+    cantidadUsuarios: ids.length,
+    cantidadViajes,
+    cantidadHistorial: Number(historial[0].cantidad),
+  };
+}
 
 router.get(
   "/usuarios",
@@ -159,6 +189,84 @@ router.delete(
       res.json({
         eliminado: true,
         cantidadViajesEliminados: Number(viajes[0].cantidad),
+      });
+    } catch (error) {
+      await connection.rollback();
+      throw error;
+    } finally {
+      connection.release();
+    }
+  }),
+);
+
+router.get(
+  "/limpieza",
+  asyncHandler(async (req, res) => {
+    const vista = await obtenerVistaLimpieza(
+      pool,
+      req.usuario.idUsuario,
+      false,
+    );
+    res.json({
+      cuentaConservada: req.usuario.email,
+      cantidadUsuarios: vista.cantidadUsuarios,
+      cantidadViajes: vista.cantidadViajes,
+      cantidadHistorial: vista.cantidadHistorial,
+    });
+  }),
+);
+
+router.delete(
+  "/limpieza",
+  validar(
+    z.object({
+      emailConfirmacion: z
+        .email()
+        .max(150)
+        .transform((email) => email.toLowerCase()),
+      contrasena: z.string().min(8).max(72),
+      confirmacion: z.literal("ELIMINAR USUARIOS"),
+    }),
+  ),
+  asyncHandler(async (req, res) => {
+    if (req.body.emailConfirmacion !== req.usuario.email.toLowerCase()) {
+      throw new AppError(400, "El correo de confirmación no coincide.");
+    }
+    const connection = await pool.getConnection();
+    try {
+      await connection.beginTransaction();
+      const [administradores] = await connection.execute(
+        `SELECT contrasena_hash FROM usuarios
+         WHERE id_usuario=? AND rol='ADMIN' AND activo=TRUE FOR UPDATE`,
+        [req.usuario.idUsuario],
+      );
+      if (
+        !administradores[0] ||
+        !(await bcrypt.compare(
+          req.body.contrasena,
+          administradores[0].contrasena_hash,
+        ))
+      ) {
+        throw new AppError(400, "La contraseña no es correcta.");
+      }
+      const vista = await obtenerVistaLimpieza(
+        connection,
+        req.usuario.idUsuario,
+        true,
+      );
+      await connection.execute("DELETE FROM acciones_admin");
+      if (vista.ids.length) {
+        await connection.query("DELETE FROM usuarios WHERE id_usuario IN (?)", [
+          vista.ids,
+        ]);
+      }
+      await connection.commit();
+      res.json({
+        completada: true,
+        cuentaConservada: req.usuario.email,
+        usuariosEliminados: vista.cantidadUsuarios,
+        viajesEliminados: vista.cantidadViajes,
+        historialEliminado: vista.cantidadHistorial,
       });
     } catch (error) {
       await connection.rollback();

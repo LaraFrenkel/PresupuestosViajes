@@ -465,6 +465,42 @@ textarea:focus {
 .admin-action-dialog textarea {
   min-height: 100px;
 }
+.admin-maintenance {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.5rem;
+  border-color: #e8b8aa;
+}
+.admin-maintenance h2 {
+  margin-bottom: 0.4rem;
+}
+.cleanup-summary {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.75rem;
+  margin: 1.25rem 0;
+}
+.cleanup-summary > div {
+  display: grid;
+  padding: 0.9rem;
+  border-radius: 6px;
+  background: #f4f7f3;
+  text-align: center;
+}
+.cleanup-summary strong {
+  font-size: 1.5rem;
+  color: var(--green);
+}
+.cleanup-summary span {
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+.preserved-account {
+  padding: 0.8rem;
+  border-left: 3px solid var(--green);
+  background: #eef5f2;
+}
 @media (max-width: 700px) {
   .admin-heading,
   .admin-toolbar {
@@ -489,6 +525,13 @@ textarea:focus {
   }
   .admin-history > div > small:last-child {
     grid-column: 2;
+  }
+  .admin-maintenance {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .cleanup-summary {
+    grid-template-columns: 1fr;
   }
 }
 @media (max-width: 560px) {
