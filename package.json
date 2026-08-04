@@ -3,12 +3,16 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "dev": "node --watch src/server.js",
     "start": "node src/server.js",
     "test": "node --test",
     "test:flow": "node test/flujo-integral.js",
-    "test:schema": "node test/instalacion-schema.js"
+    "test:schema": "node test/instalacion-schema.js",
+    "db:init": "node scripts/init-db.js"
   },
   "dependencies": {
     "bcryptjs": "^3.0.2",

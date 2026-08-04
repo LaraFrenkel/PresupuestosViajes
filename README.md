@@ -58,6 +58,8 @@ npm run dev
 
 Luego abrir http://localhost:5173. La API queda disponible en http://localhost:3000 y su comprobación de salud en http://localhost:3000/api/salud.
 
+El frontend está preparado como PWA. En Android, un navegador compatible mostrará **Instalar** cuando la aplicación se sirva por HTTPS o desde `localhost`. En iPhone, se instala desde Safari con **Compartir → Agregar a inicio**. Las consultas ya visitadas y los cambios sobre viajes existentes pueden conservarse sin conexión; la cola se sincroniza con el backend al recuperar internet y detecta cambios concurrentes.
+
 ## Variables de entorno
 
 | Variable         | Uso                                                | Ejemplo                   |

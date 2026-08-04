@@ -1,5 +1,14 @@
 # Guía de uso de Brújula
 
+## Instalar en el celular
+
+- **Android:** abrí la aplicación publicada en Chrome y elegí **Instalar** en el aviso de Brújula o en el menú del navegador.
+- **iPhone:** abrila en Safari, tocá **Compartir** y luego **Agregar a inicio**.
+
+Para instalarla desde otro dispositivo, la aplicación debe estar publicada con HTTPS. Las pantallas visitadas quedan guardadas para consultarlas sin conexión. Los cambios sobre viajes existentes se conservan en una cola y se sincronizan al recuperar internet. Para crear un viaje nuevo por primera vez todavía se necesita conexión.
+
+Debajo del nombre del viaje se muestra el estado: **Sincronizado**, **Cambios pendientes** o **Conflicto**. Si otra colaboradora cambió el viaje antes de la sincronización, se puede revisar la advertencia, aplicar los cambios locales sobre la información más reciente o descartarlos.
+
 ## 1. Crear el viaje
 
 Después de registrarte, elegí **Nuevo viaje**. Cargá las fechas, la moneda principal y los datos generales. La moneda principal se usa como referencia, pero el viaje puede tener movimientos en varias monedas.

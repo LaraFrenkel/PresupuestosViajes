@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { api } from "./api.js";
+import { listarOperaciones } from "./offline-db.js";
+import { descartarPendientes, sincronizarViaje } from "./sync.js";
 
 const viajeVacio = {
   nombre: "",
@@ -282,6 +284,7 @@ function ViajeForm({ inicial, onSave, onCancel, onDelete }) {
           />
         </label>
       </div>
+      {inicial && <ColaboradoresViaje viaje={inicial} />}
       {error && <div className="alert">{error}</div>}
       <div className="actions">
         {inicial && onDelete && (
@@ -295,6 +298,98 @@ function ViajeForm({ inicial, onSave, onCancel, onDelete }) {
         <button className="button primary">Guardar viaje</button>
       </div>
     </form>
+  );
+}
+
+function ColaboradoresViaje({ viaje }) {
+  const [data, setData] = useState(null);
+  const [email, setEmail] = useState("");
+  const [error, setError] = useState("");
+
+  async function cargar() {
+    try {
+      setData(await api(`/viajes/${viaje.idViaje}/colaboradores`));
+      setError("");
+    } catch (e) {
+      setError(e.message);
+    }
+  }
+  useEffect(() => {
+    cargar();
+  }, [viaje.idViaje]);
+
+  async function agregar(e) {
+    e.preventDefault();
+    try {
+      await api(`/viajes/${viaje.idViaje}/colaboradores`, {
+        method: "POST",
+        body: JSON.stringify({ email }),
+      });
+      setEmail("");
+      await cargar();
+    } catch (e) {
+      setError(e.message);
+    }
+  }
+
+  async function quitar(persona) {
+    if (!confirm(`¿Quitar el acceso de “${persona.nombre}”?`)) return;
+    try {
+      await api(`/viajes/${viaje.idViaje}/colaboradores/${persona.idUsuario}`, {
+        method: "DELETE",
+      });
+      await cargar();
+    } catch (e) {
+      setError(e.message);
+    }
+  }
+
+  return (
+    <section className="collaborators-block">
+      <div>
+        <p className="eyebrow">Acceso compartido</p>
+        <h3>Colaboradoras</h3>
+        <p className="empty-copy">
+          Las editoras pueden consultar y modificar toda la información del
+          viaje.
+        </p>
+      </div>
+      {data?.puedeAdministrar && (
+        <form className="collaborator-form" onSubmit={agregar}>
+          <input
+            required
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="correo@ejemplo.com"
+            aria-label="Correo de la colaboradora"
+          />
+          <button className="button secondary">Dar acceso</button>
+        </form>
+      )}
+      {error && <div className="alert">{error}</div>}
+      <div className="collaborator-list">
+        {data?.colaboradores.map((persona) => (
+          <div key={persona.idUsuario}>
+            <span className="user-avatar">{persona.nombre[0]}</span>
+            <div>
+              <strong>{persona.nombre}</strong>
+              <small>{persona.email}</small>
+            </div>
+            <span className="status">{persona.rol}</span>
+            {data.puedeAdministrar && persona.rol !== "PROPIETARIA" && (
+              <button
+                type="button"
+                className="text-button danger"
+                onClick={() => quitar(persona)}
+              >
+                Quitar
+              </button>
+            )}
+          </div>
+        ))}
+      </div>
+    </section>
   );
 }
 
@@ -1187,6 +1282,10 @@ function Cotizaciones({ viaje }) {
       body: JSON.stringify(data),
     });
     setEditandoCotizacion(null);
+    if (c.pendienteSincronizar) {
+      setVista("lista");
+      return;
+    }
     await cargar();
     await abrir(c.idCotizacion);
   }
@@ -3518,7 +3617,11 @@ function Dashboard({ usuario, onLogout }) {
     )
       return;
     const actualizado = await api(`/viajes/${v.idViaje}`, { method: "DELETE" });
-    if (seleccionado?.idViaje === v.idViaje) setSeleccionado(actualizado);
+    if (
+      seleccionado?.idViaje === v.idViaje &&
+      !actualizado.pendienteSincronizar
+    )
+      setSeleccionado(actualizado);
     await cargar();
   }
   async function eliminarViaje(v) {
@@ -3583,6 +3686,7 @@ function Dashboard({ usuario, onLogout }) {
                 {seleccionado.puertoSalida || "Puerto por definir"} ·{" "}
                 {seleccionado.fechaSalida} → {seleccionado.fechaRegreso}
               </p>
+              <EstadoSincronizacion viaje={seleccionado} />
             </div>
             <button
               className="button light"
@@ -3649,7 +3753,11 @@ function Dashboard({ usuario, onLogout }) {
                 setSeleccionado(actualizado);
               }}
               onCancel={() => setFormVisible(false)}
-              onDelete={() => eliminarViaje(seleccionado)}
+              onDelete={
+                seleccionado.esPropietaria
+                  ? () => eliminarViaje(seleccionado)
+                  : undefined
+              }
             />
           )}{" "}
           {seccion === "resumen" && (
@@ -3769,6 +3877,112 @@ function Dashboard({ usuario, onLogout }) {
   );
 }
 
+function EstadoSincronizacion({ viaje }) {
+  const [estado, setEstado] = useState(null);
+  const [pendientes, setPendientes] = useState([]);
+  const [trabajando, setTrabajando] = useState(false);
+  const [error, setError] = useState("");
+
+  async function cargar() {
+    setPendientes(await listarOperaciones(viaje.idViaje).catch(() => []));
+    try {
+      if (navigator.onLine)
+        setEstado(await api(`/viajes/${viaje.idViaje}/sincronizacion?desde=0`));
+    } catch {
+      // El indicador general ya informa la falta de conexión.
+    }
+  }
+  useEffect(() => {
+    cargar();
+    const actualizar = () => cargar();
+    const reconectar = async () => {
+      await cargar();
+      const cola = await listarOperaciones(viaje.idViaje);
+      if (cola.length && !cola.some((x) => x.estado === "CONFLICTO"))
+        await sincronizar(false);
+    };
+    window.addEventListener("brujula:cola", actualizar);
+    window.addEventListener("online", reconectar);
+    return () => {
+      window.removeEventListener("brujula:cola", actualizar);
+      window.removeEventListener("online", reconectar);
+    };
+  }, [viaje.idViaje]);
+
+  async function sincronizar(forzar = false) {
+    setTrabajando(true);
+    setError("");
+    try {
+      const resultado = await sincronizarViaje(viaje.idViaje, forzar);
+      if (resultado.conflicto) {
+        setError("Otra colaboradora modificó el viaje antes de tu sincronización.");
+        await cargar();
+      } else if (resultado.sincronizadas) {
+        window.location.reload();
+      }
+    } catch (e) {
+      setError(e.message);
+      await cargar();
+    } finally {
+      setTrabajando(false);
+    }
+  }
+
+  async function descartar() {
+    if (
+      !confirm("¿Descartar todos los cambios pendientes de este dispositivo?")
+    )
+      return;
+    await descartarPendientes(viaje.idViaje);
+    setError("");
+    await cargar();
+  }
+
+  const conflicto = pendientes.some((x) => x.estado === "CONFLICTO");
+  return (
+    <div className={`sync-indicator ${conflicto ? "conflict" : ""}`}>
+      <span>
+        {conflicto
+          ? "Conflicto de sincronización"
+            : pendientes.length
+              ? `${pendientes.length} cambio(s) pendiente(s)`
+              : navigator.onLine
+                ? "Sincronizado"
+                : "Copia local"}
+      </span>
+      {estado?.ultimoUsuario && !pendientes.length && (
+        <small>Último cambio: {estado.ultimoUsuario}</small>
+      )}
+      {error && <small>{error}</small>}
+      {pendientes.length > 0 && navigator.onLine && (
+        <div>
+          <button disabled={trabajando} onClick={() => sincronizar(false)}>
+            Sincronizar
+          </button>
+          {conflicto && (
+            <button
+              disabled={trabajando}
+              onClick={() => {
+                if (
+                  confirm(
+                    "Esto aplicará tus cambios sobre la versión más reciente. ¿Continuar?",
+                  )
+                )
+                  sincronizar(true);
+              }}
+            >
+              Aplicar mis cambios
+            </button>
+          )}
+          <button disabled={trabajando} onClick={descartar}>
+            Descartar
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function Header({ usuario, onLogout }) {
   return (
     <header className="topbar">
@@ -3817,6 +4031,89 @@ function TripCard({ viaje, onOpen, onArchive }) {
   );
 }
 
+function InstalacionApp() {
+  const [evento, setEvento] = useState(null);
+  const [oculto, setOculto] = useState(
+    () => sessionStorage.getItem("ocultar-instalacion") === "true",
+  );
+  const esIos = /iphone|ipad|ipod/i.test(navigator.userAgent);
+  const instalada = window.matchMedia("(display-mode: standalone)").matches;
+
+  useEffect(() => {
+    const disponible = (e) => {
+      e.preventDefault();
+      setEvento(e);
+    };
+    const completada = () => setEvento(null);
+    window.addEventListener("beforeinstallprompt", disponible);
+    window.addEventListener("appinstalled", completada);
+    return () => {
+      window.removeEventListener("beforeinstallprompt", disponible);
+      window.removeEventListener("appinstalled", completada);
+    };
+  }, []);
+
+  async function instalar() {
+    if (!evento) return;
+    await evento.prompt();
+    const eleccion = await evento.userChoice;
+    if (eleccion.outcome === "accepted") setEvento(null);
+  }
+
+  if (instalada || oculto || (!evento && !esIos)) return null;
+  return (
+    <aside className="install-banner" aria-label="Instalar aplicación">
+      <img src="/icons/brujula.svg" alt="" />
+      <div>
+        <strong>Instalá Brújula</strong>
+        <small>
+          {esIos && !evento
+            ? "En Safari: Compartir → Agregar a inicio."
+            : "Usala desde tu pantalla de inicio como una aplicación."}
+        </small>
+      </div>
+      {evento && (
+        <button className="button primary" onClick={instalar}>
+          Instalar
+        </button>
+      )}
+      <button
+        className="icon-button"
+        aria-label="Cerrar indicación de instalación"
+        onClick={() => {
+          sessionStorage.setItem("ocultar-instalacion", "true");
+          setOculto(true);
+        }}
+      >
+        ×
+      </button>
+    </aside>
+  );
+}
+
+function EstadoConexion() {
+  const [conectada, setConectada] = useState(navigator.onLine);
+  useEffect(() => {
+    const online = () => setConectada(true);
+    const offline = () => setConectada(false);
+    const resultado = (e) => setConectada(Boolean(e.detail));
+    window.addEventListener("online", online);
+    window.addEventListener("offline", offline);
+    window.addEventListener("brujula:conexion", resultado);
+    return () => {
+      window.removeEventListener("online", online);
+      window.removeEventListener("offline", offline);
+      window.removeEventListener("brujula:conexion", resultado);
+    };
+  }, []);
+  if (conectada) return null;
+  return (
+    <div className="offline-status" role="status">
+      Sin conexión · mostrando la información guardada en este dispositivo
+    </div>
+  );
+}
+
 export default function App() {
   const [sesion, setSesion] = useState(() => {
     const token = localStorage.getItem("token");
@@ -3848,9 +4145,15 @@ export default function App() {
     localStorage.setItem("usuario", JSON.stringify(data.usuario));
     setSesion(data);
   }
-  return sesion ? (
-    <Dashboard usuario={sesion.usuario} onLogout={() => setSesion(null)} />
-  ) : (
-    <Auth onLogin={login} />
+  return (
+    <>
+      {sesion ? (
+        <Dashboard usuario={sesion.usuario} onLogout={() => setSesion(null)} />
+      ) : (
+        <Auth onLogin={login} />
+      )}
+      <EstadoConexion />
+      <InstalacionApp />
+    </>
   );
 }

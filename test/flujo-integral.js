@@ -6,6 +6,7 @@ import { pool } from "../src/db.js";
 const marca = Date.now();
 const email = `prueba-integral-${marca}@example.com`;
 let idUsuario;
+let idUsuarioColaboradora;
 let idViaje;
 
 function ok(response, status, paso) {
@@ -83,6 +84,18 @@ try {
   );
   idUsuario = registro.idUsuario;
 
+  const emailColaboradora = `prueba-integral-colab-${marca}@example.com`;
+  const registroColaboradora = ok(
+    await request(app).post("/api/auth/registro").send({
+      nombre: "Colaboradora QA",
+      email: emailColaboradora,
+      contrasena: "Prueba-1234",
+    }),
+    201,
+    "registro colaboradora",
+  );
+  idUsuarioColaboradora = registroColaboradora.idUsuario;
+
   const login = ok(
     await request(app).post("/api/auth/login").send({
       email,
@@ -107,6 +120,30 @@ try {
     "crear viaje",
   );
   idViaje = viaje.idViaje;
+
+  ok(
+    await api
+      .post(`/api/viajes/${idViaje}/colaboradores`)
+      .set(auth)
+      .send({ email: emailColaboradora }),
+    201,
+    "compartir viaje",
+  );
+  const loginColaboradora = ok(
+    await request(app).post("/api/auth/login").send({
+      email: emailColaboradora,
+      contrasena: "Prueba-1234",
+    }),
+    200,
+    "login colaboradora",
+  );
+  ok(
+    await api
+      .get(`/api/viajes/${idViaje}`)
+      .set({ Authorization: `Bearer ${loginColaboradora.token}` }),
+    200,
+    "acceso colaborativo",
+  );
 
   const p1 = ok(
     await api
@@ -285,6 +322,20 @@ try {
     "la transferencia realizada debe saldar el balance",
   );
 
+  const sincronizacion = ok(
+    await api
+      .get(`/api/viajes/${idViaje}/sincronizacion?desde=0`)
+      .set({ Authorization: `Bearer ${loginColaboradora.token}` }),
+    200,
+    "consultar versión compartida",
+  );
+  assert.ok(sincronizacion.version >= 8, "debe versionar las modificaciones");
+  assert.equal(
+    sincronizacion.cambios.at(-1).version,
+    sincronizacion.version,
+    "el historial debe llegar a la versión actual",
+  );
+
   ok(
     await api.delete(`/api/viajes/${idViaje}/permanente`).set(auth),
     200,
@@ -298,5 +349,9 @@ try {
   if (idViaje) await limpiarViaje(idViaje);
   if (idUsuario)
     await pool.execute("DELETE FROM usuarios WHERE id_usuario=?", [idUsuario]);
+  if (idUsuarioColaboradora)
+    await pool.execute("DELETE FROM usuarios WHERE id_usuario=?", [
+      idUsuarioColaboradora,
+    ]);
   await pool.end();
 }
