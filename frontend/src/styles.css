@@ -412,6 +412,14 @@ textarea:focus {
   color: var(--muted);
   font-size: 0.78rem;
 }
+.admin-user-actions {
+  display: grid;
+  justify-items: stretch;
+  gap: 0.55rem;
+}
+.admin-user-actions .text-button {
+  font-size: 0.78rem;
+}
 .admin-badge,
 .blocked-badge {
   display: inline-flex;

@@ -20,13 +20,18 @@ CREATE TABLE IF NOT EXISTS acciones_admin (
   id_accion BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   id_admin BIGINT UNSIGNED,
   id_usuario BIGINT UNSIGNED,
-  accion ENUM('BLOQUEAR','RESTAURAR') NOT NULL,
+  accion ENUM('BLOQUEAR','RESTAURAR','ELIMINAR') NOT NULL,
   motivo VARCHAR(300) NOT NULL,
+  usuario_nombre VARCHAR(100),
+  usuario_email VARCHAR(150),
   creado_en TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   CONSTRAINT fk_accion_admin FOREIGN KEY (id_admin) REFERENCES usuarios(id_usuario) ON DELETE SET NULL,
   CONSTRAINT fk_accion_usuario FOREIGN KEY (id_usuario) REFERENCES usuarios(id_usuario) ON DELETE SET NULL,
   INDEX idx_acciones_usuario_fecha (id_usuario, creado_en)
 ) ENGINE=InnoDB;
+
+ALTER TABLE acciones_admin
+  MODIFY accion ENUM('BLOQUEAR','RESTAURAR','ELIMINAR') NOT NULL;
 
 CREATE TABLE IF NOT EXISTS viajes (
   id_viaje BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,

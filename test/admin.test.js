@@ -70,17 +70,45 @@ test("un administrador puede bloquear y restaurar el acceso sin ver datos sensib
     .set(usuarioAuth);
   assert.equal(sesionRestaurada.status, 200);
 
+  await request(app)
+    .patch(`/api/admin/usuarios/${usuarioRegistro.body.idUsuario}/acceso`)
+    .set(adminAuth)
+    .send({
+      accion: "BLOQUEAR",
+      motivo: "Cuenta cerrada a pedido del usuario",
+    });
+  const confirmacionIncorrecta = await request(app)
+    .delete(`/api/admin/usuarios/${usuarioRegistro.body.idUsuario}`)
+    .set(adminAuth)
+    .send({
+      emailConfirmacion: "correo-incorrecto@example.com",
+      motivo: "Solicitud verificada de eliminación",
+    });
+  assert.equal(confirmacionIncorrecta.status, 400);
+  const eliminacion = await request(app)
+    .delete(`/api/admin/usuarios/${usuarioRegistro.body.idUsuario}`)
+    .set(adminAuth)
+    .send({
+      emailConfirmacion: usuarioEmail,
+      motivo: "Solicitud verificada de eliminación",
+    });
+  assert.equal(eliminacion.status, 200);
+  assert.equal(eliminacion.body.eliminado, true);
+
   const historial = await request(app)
     .get("/api/admin/acciones")
     .set(adminAuth);
   assert.equal(historial.status, 200);
   assert.ok(historial.body.some((accion) => accion.accion === "BLOQUEAR"));
+  const accionEliminar = historial.body.find(
+    (accion) => accion.accion === "ELIMINAR",
+  );
+  assert.equal(accionEliminar.usuarioEmail, usuarioEmail);
 
   await pool.execute("DELETE FROM acciones_admin WHERE id_admin=?", [
     adminRegistro.body.idUsuario,
   ]);
-  await pool.execute("DELETE FROM usuarios WHERE id_usuario IN (?,?)", [
+  await pool.execute("DELETE FROM usuarios WHERE id_usuario=?", [
     adminRegistro.body.idUsuario,
-    usuarioRegistro.body.idUsuario,
   ]);
 });
