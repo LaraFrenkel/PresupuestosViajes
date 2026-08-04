@@ -36,7 +36,7 @@ router.post(
   validar(credenciales),
   asyncHandler(async (req, res) => {
     const [rows] = await pool.execute(
-      "SELECT id_usuario, nombre, email, contrasena_hash FROM usuarios WHERE email = ? AND activo = TRUE",
+      "SELECT id_usuario, nombre, email, contrasena_hash, rol FROM usuarios WHERE email = ? AND activo = TRUE",
       [req.body.email],
     );
     const usuario = rows[0];
@@ -50,12 +50,17 @@ router.post(
       subject: String(usuario.id_usuario),
       expiresIn: config.jwtExpiresIn,
     });
+    await pool.execute(
+      "UPDATE usuarios SET ultimo_acceso=NOW() WHERE id_usuario=?",
+      [usuario.id_usuario],
+    );
     res.json({
       token,
       usuario: {
         idUsuario: usuario.id_usuario,
         nombre: usuario.nombre,
         email: usuario.email,
+        rol: usuario.rol,
       },
     });
   }),
@@ -66,7 +71,7 @@ router.get(
   requerirAutenticacion,
   asyncHandler(async (req, res) => {
     const [rows] = await pool.execute(
-      "SELECT id_usuario AS idUsuario, nombre, email, creado_en AS creadoEn FROM usuarios WHERE id_usuario=? AND activo=TRUE",
+      "SELECT id_usuario AS idUsuario, nombre, email, rol, creado_en AS creadoEn, ultimo_acceso AS ultimoAcceso FROM usuarios WHERE id_usuario=? AND activo=TRUE",
       [req.usuario.idUsuario],
     );
     if (!rows[0]) throw new AppError(404, "La cuenta no existe.");
@@ -114,6 +119,7 @@ router.patch(
       idUsuario: req.usuario.idUsuario,
       nombre: req.body.nombre,
       email: req.body.email,
+      rol: req.usuario.rol,
     };
     const token = jwt.sign({ email: usuario.email }, config.jwtSecret, {
       subject: String(usuario.idUsuario),

@@ -27,6 +27,41 @@ try {
     );
   }
   await connection.query(schema);
+  const baseActual =
+    process.env.DB_MANAGED === "true"
+      ? process.env.DB_NAME
+      : "app_presupuestos_viajes";
+  const columnasUsuarios = [
+    [
+      "rol",
+      "ENUM('USUARIO','ADMIN') NOT NULL DEFAULT 'USUARIO' AFTER contrasena_hash",
+    ],
+    ["ultimo_acceso", "DATETIME NULL AFTER activo"],
+    ["bloqueado_en", "DATETIME NULL AFTER ultimo_acceso"],
+    ["motivo_bloqueo", "VARCHAR(300) NULL AFTER bloqueado_en"],
+  ];
+  for (const [columna, definicion] of columnasUsuarios) {
+    const [existente] = await connection.execute(
+      `SELECT 1 FROM information_schema.COLUMNS
+       WHERE TABLE_SCHEMA=? AND TABLE_NAME='usuarios' AND COLUMN_NAME=?`,
+      [baseActual, columna],
+    );
+    if (!existente.length) {
+      await connection.query(
+        `ALTER TABLE usuarios ADD COLUMN ${columna} ${definicion}`,
+      );
+    }
+  }
+  const administradores = (process.env.ADMIN_EMAILS ?? "")
+    .split(",")
+    .map((email) => email.trim().toLowerCase())
+    .filter(Boolean);
+  if (administradores.length) {
+    await connection.query(
+      "UPDATE usuarios SET rol='ADMIN' WHERE email IN (?)",
+      [administradores],
+    );
+  }
   console.log("Base de datos preparada correctamente.");
 } finally {
   await connection.end();
