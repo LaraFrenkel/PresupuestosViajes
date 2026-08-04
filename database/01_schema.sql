@@ -331,7 +331,7 @@ CREATE TABLE IF NOT EXISTS transferencias (
 
 SET @agregar_estado_pago = (
   SELECT IF(COUNT(*) = 0,
-    "ALTER TABLE pagos ADD COLUMN estado ENUM('ACTIVO','REVERTIDO') NOT NULL DEFAULT 'ACTIVO'",
+    'ALTER TABLE pagos ADD COLUMN estado ENUM(''ACTIVO'',''REVERTIDO'') NOT NULL DEFAULT ''ACTIVO''',
     'SELECT 1')
   FROM information_schema.columns
   WHERE table_schema = DATABASE() AND table_name = 'pagos' AND column_name = 'estado'

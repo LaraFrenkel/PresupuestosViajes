@@ -13,6 +13,9 @@ const connection = await mysql.createConnection({
 });
 
 try {
+  await connection.query(
+    "SET SESSION sql_mode=CONCAT(@@sql_mode, ',ANSI_QUOTES')",
+  );
   const original = await readFile(
     new URL("../database/01_schema.sql", import.meta.url),
     "utf8",
