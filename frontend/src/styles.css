@@ -214,6 +214,54 @@ textarea:focus {
   align-items: center;
   gap: 0.7rem;
 }
+.profile-trigger {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  padding: 0.25rem;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+}
+.profile-trigger:hover .user-name {
+  text-decoration: underline;
+}
+.profile-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  background: rgba(18, 45, 42, 0.55);
+}
+.profile-panel {
+  width: min(560px, 100%);
+  max-height: calc(100vh - 2rem);
+  overflow-y: auto;
+  padding: clamp(1.25rem, 4vw, 2rem);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--paper);
+  box-shadow: 0 24px 70px rgba(15, 40, 37, 0.25);
+}
+.profile-panel h3 {
+  margin-bottom: 0.35rem;
+}
+.delete-account {
+  margin-top: 2rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid #e8b8aa;
+}
+.delete-account p {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+.danger-button {
+  border-color: #b33e2d;
+  background: #b33e2d;
+  color: #fff;
+}
 .user-avatar,
 .avatar {
   display: grid;
