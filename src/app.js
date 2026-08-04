@@ -20,7 +20,7 @@ import { limitarAdministracion } from "./middleware/rate-limit.js";
 export const app = express();
 app.set("trust proxy", 1);
 app.use(helmet());
-app.use(cors({ origin: config.frontendUrl }));
+app.use(cors({ origin: config.frontendUrl, credentials: true }));
 app.use(express.json({ limit: "1mb" }));
 
 app.get("/api/salud", (_req, res) => res.json({ estado: "ok" }));

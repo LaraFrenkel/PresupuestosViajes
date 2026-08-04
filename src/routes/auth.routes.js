@@ -1,13 +1,12 @@
 import { Router } from "express";
 import bcrypt from "bcryptjs";
-import jwt from "jsonwebtoken";
 import { z } from "zod";
 import { pool } from "../db.js";
-import { config } from "../config.js";
 import { AppError, asyncHandler } from "../errors.js";
 import { validar } from "../validation.js";
 import { requerirAutenticacion } from "../middleware/auth.js";
 import { limitarLogin, limitarRegistro } from "../middleware/rate-limit.js";
+import { cerrarSesion, crearToken, establecerSesion } from "../session.js";
 
 const router = Router();
 const contrasenaFuerte = z
@@ -99,10 +98,8 @@ router.post(
       }
       throw new AppError(401, "Email o contraseña incorrectos.");
     }
-    const token = jwt.sign({ email: usuario.email }, config.jwtSecret, {
-      subject: String(usuario.id_usuario),
-      expiresIn: config.jwtExpiresIn,
-    });
+    const token = crearToken(usuario);
+    establecerSesion(res, token);
     await pool.execute(
       `UPDATE usuarios SET ultimo_acceso=NOW(),intentos_fallidos=0,
        bloqueado_hasta=NULL WHERE id_usuario=?`,
@@ -175,13 +172,16 @@ router.patch(
       email: req.body.email,
       rol: req.usuario.rol,
     };
-    const token = jwt.sign({ email: usuario.email }, config.jwtSecret, {
-      subject: String(usuario.idUsuario),
-      expiresIn: config.jwtExpiresIn,
-    });
+    const token = crearToken(usuario);
+    establecerSesion(res, token);
     res.json({ usuario, token });
   }),
 );
+
+router.post("/logout", (_req, res) => {
+  cerrarSesion(res);
+  res.status(204).end();
+});
 
 router.delete(
   "/perfil",

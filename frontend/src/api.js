@@ -7,7 +7,9 @@ import {
   leerVersion,
 } from "./offline-db.js";
 
-const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3000/api";
+const API_URL = import.meta.env.PROD
+  ? "/api"
+  : (import.meta.env.VITE_API_URL ?? "http://localhost:3000/api");
 
 export async function api(path, options = {}) {
   const token = localStorage.getItem("token");
@@ -16,6 +18,7 @@ export async function api(path, options = {}) {
   try {
     response = await fetch(`${API_URL}${path}`, {
       ...options,
+      credentials: "include",
       headers: {
         "Content-Type": "application/json",
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
@@ -56,6 +59,7 @@ export async function api(path, options = {}) {
       await borrarDatosLocales().catch(() => undefined);
       localStorage.removeItem("token");
       localStorage.removeItem("usuario");
+      window.dispatchEvent(new Event("brujula:sesion-expirada"));
     }
     const detalles = Array.isArray(data.detalles)
       ? [
