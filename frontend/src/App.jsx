@@ -3622,7 +3622,7 @@ function ResumenViaje({ viaje, onNavigate }) {
   );
 }
 
-function Dashboard({ usuario, onLogout }) {
+function Dashboard({ usuario, onLogout, onUsuarioUpdate }) {
   const [viajes, setViajes] = useState([]);
   const [seleccionado, setSeleccionado] = useState(null);
   const [formVisible, setFormVisible] = useState(false);
@@ -3712,7 +3712,11 @@ function Dashboard({ usuario, onLogout }) {
       <div
         className={`app-shell ${seleccionado.rolAcceso === "LECTOR" ? "solo-lectura" : ""}`}
       >
-        <Header usuario={usuario} onLogout={salir} />
+        <Header
+          usuario={usuario}
+          onLogout={salir}
+          onUsuarioUpdate={onUsuarioUpdate}
+        />
         <main className="content">
           <button
             className="back"
@@ -3849,7 +3853,11 @@ function Dashboard({ usuario, onLogout }) {
     );
   return (
     <div className="app-shell">
-      <Header usuario={usuario} onLogout={salir} />
+      <Header
+        usuario={usuario}
+        onLogout={salir}
+        onUsuarioUpdate={onUsuarioUpdate}
+      />
       <main className="content">
         <section className="welcome">
           <div>
@@ -4037,23 +4045,204 @@ function EstadoSincronizacion({ viaje }) {
   );
 }
 
-function Header({ usuario, onLogout }) {
+function PerfilUsuario({ usuario, onClose, onUpdate, onDelete }) {
+  const [form, setForm] = useState({
+    nombre: usuario.nombre,
+    email: usuario.email,
+    contrasenaActual: "",
+    contrasenaNueva: "",
+  });
+  const [contrasenaEliminar, setContrasenaEliminar] = useState("");
+  const [error, setError] = useState("");
+  const [guardando, setGuardando] = useState(false);
+
+  const cambiar = (campo) => (event) =>
+    setForm((actual) => ({ ...actual, [campo]: event.target.value }));
+
+  async function guardar(event) {
+    event.preventDefault();
+    setGuardando(true);
+    setError("");
+    try {
+      const data = await api("/auth/perfil", {
+        method: "PATCH",
+        body: JSON.stringify(form),
+      });
+      localStorage.setItem("token", data.token);
+      localStorage.setItem("usuario", JSON.stringify(data.usuario));
+      onUpdate(data.usuario);
+      onClose();
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setGuardando(false);
+    }
+  }
+
+  async function eliminarCuenta() {
+    if (!contrasenaEliminar) {
+      setError("Ingresá tu contraseña para eliminar la cuenta.");
+      return;
+    }
+    if (
+      !confirm(
+        "¿Eliminar definitivamente tu cuenta? También se eliminarán los viajes que creaste. Esta acción no se puede deshacer.",
+      )
+    )
+      return;
+    setGuardando(true);
+    setError("");
+    try {
+      await api("/auth/perfil", {
+        method: "DELETE",
+        body: JSON.stringify({ contrasena: contrasenaEliminar }),
+      });
+      localStorage.removeItem("token");
+      localStorage.removeItem("usuario");
+      onDelete();
+    } catch (e) {
+      setError(e.message);
+      setGuardando(false);
+    }
+  }
+
   return (
-    <header className="topbar">
-      <div className="brand">
-        <span className="brand-mark">B</span>
-        <span>Brújula</span>
-      </div>
-      <div className="user-menu">
-        <span className="user-avatar">
-          {usuario.nombre?.[0]?.toUpperCase()}
-        </span>
-        <span className="user-name">{usuario.nombre}</span>
-        <button className="text-button" onClick={onLogout}>
-          Salir
-        </button>
-      </div>
-    </header>
+    <div className="profile-overlay" role="presentation" onMouseDown={onClose}>
+      <section
+        className="profile-panel"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="profile-title"
+        onMouseDown={(event) => event.stopPropagation()}
+      >
+        <div className="panel-heading">
+          <div>
+            <p className="eyebrow">Mi cuenta</p>
+            <h2 id="profile-title">Perfil</h2>
+          </div>
+          <button type="button" className="icon-button" onClick={onClose}>
+            ×
+          </button>
+        </div>
+        <form onSubmit={guardar}>
+          <label>
+            Nombre
+            <input
+              required
+              minLength="2"
+              value={form.nombre}
+              onChange={cambiar("nombre")}
+            />
+          </label>
+          <label>
+            Correo electrónico
+            <input
+              required
+              type="email"
+              value={form.email}
+              onChange={cambiar("email")}
+            />
+          </label>
+          <h3>Cambiar contraseña</h3>
+          <p className="empty-copy">
+            Dejá estos campos vacíos para conservarla.
+          </p>
+          <label>
+            Contraseña actual
+            <input
+              type="password"
+              autoComplete="current-password"
+              value={form.contrasenaActual}
+              onChange={cambiar("contrasenaActual")}
+            />
+          </label>
+          <label>
+            Contraseña nueva
+            <input
+              type="password"
+              minLength="8"
+              autoComplete="new-password"
+              value={form.contrasenaNueva}
+              onChange={cambiar("contrasenaNueva")}
+            />
+          </label>
+          {error && <div className="alert">{error}</div>}
+          <div className="form-actions">
+            <button type="button" className="button ghost" onClick={onClose}>
+              Cancelar
+            </button>
+            <button
+              type="submit"
+              className="button primary"
+              disabled={guardando}
+            >
+              Guardar perfil
+            </button>
+          </div>
+        </form>
+        <div className="delete-account">
+          <h3>Eliminar cuenta</h3>
+          <p>
+            Se eliminarán definitivamente tu cuenta y todos los viajes que
+            creaste.
+          </p>
+          <label>
+            Confirmá tu contraseña
+            <input
+              type="password"
+              value={contrasenaEliminar}
+              onChange={(event) => setContrasenaEliminar(event.target.value)}
+            />
+          </label>
+          <button
+            type="button"
+            className="button danger-button"
+            disabled={guardando}
+            onClick={eliminarCuenta}
+          >
+            Eliminar mi cuenta
+          </button>
+        </div>
+      </section>
+    </div>
+  );
+}
+
+function Header({ usuario, onLogout, onUsuarioUpdate }) {
+  const [perfilVisible, setPerfilVisible] = useState(false);
+  return (
+    <>
+      <header className="topbar">
+        <div className="brand">
+          <span className="brand-mark">B</span>
+          <span>Brújula</span>
+        </div>
+        <div className="user-menu">
+          <button
+            type="button"
+            className="profile-trigger"
+            onClick={() => setPerfilVisible(true)}
+            aria-label="Abrir mi perfil"
+          >
+            <span className="user-avatar">
+              {usuario.nombre?.[0]?.toUpperCase()}
+            </span>
+            <span className="user-name">{usuario.nombre}</span>
+          </button>
+          <button className="text-button" onClick={onLogout}>
+            Salir
+          </button>
+        </div>
+      </header>
+      {perfilVisible && (
+        <PerfilUsuario
+          usuario={usuario}
+          onClose={() => setPerfilVisible(false)}
+          onUpdate={onUsuarioUpdate}
+          onDelete={onLogout}
+        />
+      )}
+    </>
   );
 }
 function TripCard({ viaje, onOpen, onArchive }) {
@@ -4199,10 +4388,17 @@ export default function App() {
     localStorage.setItem("usuario", JSON.stringify(data.usuario));
     setSesion(data);
   }
+  function actualizarUsuario(usuario) {
+    setSesion((actual) => ({ ...actual, usuario }));
+  }
   return (
     <>
       {sesion ? (
-        <Dashboard usuario={sesion.usuario} onLogout={() => setSesion(null)} />
+        <Dashboard
+          usuario={sesion.usuario}
+          onLogout={() => setSesion(null)}
+          onUsuarioUpdate={actualizarUsuario}
+        />
       ) : (
         <Auth onLogin={login} />
       )}
