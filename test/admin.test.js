@@ -46,6 +46,19 @@ test("un administrador puede bloquear y restaurar el acceso sin ver datos sensib
   assert.equal(vistaLimpieza.body.cuentaConservada, adminEmail);
   assert.equal(typeof vistaLimpieza.body.cantidadUsuarios, "number");
 
+  const viajeUsuario = await request(app)
+    .post("/api/viajes")
+    .set(usuarioAuth)
+    .send({
+      nombre: "Viaje a eliminar con la cuenta",
+      tipoViaje: "OTRO",
+      fechaSalida: "2027-02-01",
+      fechaRegreso: "2027-02-03",
+      monedaPrincipal: "USD",
+      estado: "PLANIFICACION",
+    });
+  assert.equal(viajeUsuario.status, 201);
+
   const lista = await request(app).get("/api/admin/usuarios").set(adminAuth);
   assert.equal(lista.status, 200);
   const usuario = lista.body.find(

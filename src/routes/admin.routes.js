@@ -36,6 +36,95 @@ async function obtenerVistaLimpieza(
   };
 }
 
+async function eliminarDatosDeUsuarios(connection, idsUsuarios) {
+  if (!idsUsuarios.length) return;
+  const [viajes] = await connection.query(
+    "SELECT id_viaje AS idViaje FROM viajes WHERE id_usuario IN (?)",
+    [idsUsuarios],
+  );
+  for (const viaje of viajes) {
+    const id = viaje.idViaje;
+    await connection.execute(
+      `DELETE ac FROM asignaciones_concepto ac
+       JOIN conceptos_cotizacion cc ON cc.id_concepto=ac.id_concepto
+       JOIN cotizaciones c ON c.id_cotizacion=cc.id_cotizacion
+       WHERE c.id_viaje=?`,
+      [id],
+    );
+    await connection.execute(
+      `DELETE ap FROM asignaciones_presupuesto ap
+       JOIN conceptos_presupuesto cp ON cp.id_concepto_presupuesto=ap.id_concepto_presupuesto
+       JOIN presupuestos p ON p.id_presupuesto=cp.id_presupuesto
+       WHERE p.id_viaje=?`,
+      [id],
+    );
+    await connection.execute(
+      `DELETE pe FROM participantes_excursion pe
+       JOIN excursiones e ON e.id_excursion=pe.id_excursion
+       JOIN presupuestos p ON p.id_presupuesto=e.id_presupuesto
+       WHERE p.id_viaje=?`,
+      [id],
+    );
+    await connection.execute(
+      `DELETE ap FROM aplicaciones_pago ap
+       JOIN pagos pg ON pg.id_pago=ap.id_pago
+       JOIN presupuestos p ON p.id_presupuesto=pg.id_presupuesto
+       WHERE p.id_viaje=?`,
+      [id],
+    );
+    await connection.execute(
+      `DELETE a FROM aportes_pago a
+       JOIN pagos pg ON pg.id_pago=a.id_pago
+       JOIN presupuestos p ON p.id_presupuesto=pg.id_presupuesto
+       WHERE p.id_viaje=?`,
+      [id],
+    );
+    await connection.execute(
+      `DELETE b FROM beneficiarios_pago b
+       JOIN pagos pg ON pg.id_pago=b.id_pago
+       JOIN presupuestos p ON p.id_presupuesto=pg.id_presupuesto
+       WHERE p.id_viaje=?`,
+      [id],
+    );
+    await connection.execute(
+      `DELETE pg FROM pagadores_gasto pg
+       JOIN gastos g ON g.id_gasto=pg.id_gasto WHERE g.id_viaje=?`,
+      [id],
+    );
+    await connection.execute(
+      `DELETE ag FROM asignaciones_gasto ag
+       JOIN gastos g ON g.id_gasto=ag.id_gasto WHERE g.id_viaje=?`,
+      [id],
+    );
+    await connection.execute("DELETE FROM transferencias WHERE id_viaje=?", [
+      id,
+    ]);
+  }
+  await connection.query(
+    "UPDATE acciones_admin SET id_admin=NULL WHERE id_admin IN (?)",
+    [idsUsuarios],
+  );
+  await connection.query(
+    "UPDATE acciones_admin SET id_usuario=NULL WHERE id_usuario IN (?)",
+    [idsUsuarios],
+  );
+  await connection.query(
+    "UPDATE sincronizacion_viaje SET id_usuario_ultimo=NULL WHERE id_usuario_ultimo IN (?)",
+    [idsUsuarios],
+  );
+  await connection.query(
+    "UPDATE cambios_sincronizacion SET id_usuario=NULL WHERE id_usuario IN (?)",
+    [idsUsuarios],
+  );
+  await connection.query(
+    "DELETE FROM colaboradores_viaje WHERE id_usuario IN (?)",
+    [idsUsuarios],
+  );
+  await connection.query("DELETE FROM viajes WHERE id_usuario IN (?)", [
+    idsUsuarios,
+  ]);
+}
+
 router.get(
   "/usuarios",
   asyncHandler(async (_req, res) => {
@@ -182,6 +271,7 @@ router.delete(
           usuario.email,
         ],
       );
+      await eliminarDatosDeUsuarios(connection, [idUsuario]);
       await connection.execute("DELETE FROM usuarios WHERE id_usuario=?", [
         idUsuario,
       ]);
@@ -256,6 +346,7 @@ router.delete(
       );
       await connection.execute("DELETE FROM acciones_admin");
       if (vista.ids.length) {
+        await eliminarDatosDeUsuarios(connection, vista.ids);
         await connection.query("DELETE FROM usuarios WHERE id_usuario IN (?)", [
           vista.ids,
         ]);
