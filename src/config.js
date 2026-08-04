@@ -17,7 +17,12 @@ export const config = {
     database: process.env.DB_NAME,
     ssl:
       process.env.DB_SSL === "true"
-        ? { rejectUnauthorized: process.env.DB_SSL_VERIFY !== "false" }
+        ? {
+            rejectUnauthorized: process.env.DB_SSL_VERIFY !== "false",
+            ...(process.env.DB_SSL_CA
+              ? { ca: process.env.DB_SSL_CA.replaceAll("\\n", "\n") }
+              : {}),
+          }
         : undefined,
     waitForConnections: true,
     connectionLimit: 10,

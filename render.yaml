@@ -4,7 +4,7 @@ services:
     runtime: node
     plan: free
     buildCommand: npm ci
-    startCommand: npm start
+    startCommand: npm run db:init && npm start
     healthCheckPath: /api/salud
     autoDeploy: true
     envVars:
@@ -18,6 +18,8 @@ services:
         value: "true"
       - key: DB_SSL_VERIFY
         value: "true"
+      - key: DB_SSL_CA
+        sync: false
       - key: DB_MANAGED
         value: "true"
       - key: DB_HOST
