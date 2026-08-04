@@ -22,6 +22,18 @@ function abrir() {
   });
 }
 
+export function borrarDatosLocales() {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.deleteDatabase(DB_NAME);
+    request.onsuccess = () => resolve();
+    request.onerror = () => reject(request.error);
+    request.onblocked = () =>
+      reject(
+        new Error("Cerrá otras pestañas de la aplicación y volvé a intentar."),
+      );
+  });
+}
+
 function idUsuario() {
   return JSON.parse(localStorage.getItem("usuario") || "null")?.idUsuario;
 }

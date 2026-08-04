@@ -12,8 +12,23 @@ CREATE TABLE IF NOT EXISTS usuarios (
   ultimo_acceso DATETIME,
   bloqueado_en DATETIME,
   motivo_bloqueo VARCHAR(300),
+  intentos_fallidos SMALLINT UNSIGNED NOT NULL DEFAULT 0,
+  bloqueado_hasta DATETIME,
   creado_en TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   actualizado_en TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS eventos_seguridad (
+  id_evento BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  id_usuario BIGINT UNSIGNED,
+  tipo ENUM('LOGIN_FALLIDO','BLOQUEO_TEMPORAL','ACCESO_ADMIN') NOT NULL,
+  email_intentado VARCHAR(150),
+  ip VARCHAR(64),
+  detalle VARCHAR(300),
+  creado_en TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT fk_evento_usuario FOREIGN KEY (id_usuario) REFERENCES usuarios(id_usuario) ON DELETE SET NULL,
+  INDEX idx_eventos_fecha (creado_en),
+  INDEX idx_eventos_usuario (id_usuario, creado_en)
 ) ENGINE=InnoDB;
 
 CREATE TABLE IF NOT EXISTS acciones_admin (

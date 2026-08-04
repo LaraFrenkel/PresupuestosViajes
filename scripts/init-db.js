@@ -44,6 +44,11 @@ try {
     ["ultimo_acceso", "DATETIME NULL AFTER activo"],
     ["bloqueado_en", "DATETIME NULL AFTER ultimo_acceso"],
     ["motivo_bloqueo", "VARCHAR(300) NULL AFTER bloqueado_en"],
+    [
+      "intentos_fallidos",
+      "SMALLINT UNSIGNED NOT NULL DEFAULT 0 AFTER motivo_bloqueo",
+    ],
+    ["bloqueado_hasta", "DATETIME NULL AFTER intentos_fallidos"],
   ];
   for (const [columna, definicion] of columnasUsuarios) {
     const [existente] = await connection.execute(

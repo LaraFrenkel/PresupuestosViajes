@@ -157,6 +157,20 @@ router.get(
   }),
 );
 
+router.get(
+  "/seguridad",
+  asyncHandler(async (_req, res) => {
+    const [eventos] = await pool.execute(
+      `SELECT e.id_evento AS idEvento,e.tipo,e.email_intentado AS email,
+       e.ip,e.detalle,e.creado_en AS creadoEn,u.nombre AS usuarioNombre
+       FROM eventos_seguridad e
+       LEFT JOIN usuarios u ON u.id_usuario=e.id_usuario
+       ORDER BY e.creado_en DESC LIMIT 100`,
+    );
+    res.json(eventos);
+  }),
+);
+
 router.patch(
   "/usuarios/:idUsuario/acceso",
   validar(

@@ -7,19 +7,33 @@ import { config } from "../config.js";
 import { AppError, asyncHandler } from "../errors.js";
 import { validar } from "../validation.js";
 import { requerirAutenticacion } from "../middleware/auth.js";
+import { limitarLogin, limitarRegistro } from "../middleware/rate-limit.js";
 
 const router = Router();
+const contrasenaFuerte = z
+  .string()
+  .min(10)
+  .max(72)
+  .regex(/[a-z]/, "Debe incluir una letra minúscula.")
+  .regex(/[A-Z]/, "Debe incluir una letra mayúscula.")
+  .regex(/[0-9]/, "Debe incluir un número.");
 const credenciales = z.object({
   email: z
     .email()
     .max(150)
-    .transform((value) => value.toLowerCase()),
+    .transform((value) => value.trim().toLowerCase()),
   contrasena: z.string().min(8).max(72),
 });
 
 router.post(
   "/registro",
-  validar(credenciales.extend({ nombre: z.string().trim().min(2).max(100) })),
+  limitarRegistro,
+  validar(
+    credenciales.extend({
+      nombre: z.string().trim().min(2).max(100),
+      contrasena: contrasenaFuerte,
+    }),
+  ),
   asyncHandler(async (req, res) => {
     const { nombre, email, contrasena } = req.body;
     const hash = await bcrypt.hash(contrasena, 12);
@@ -33,17 +47,56 @@ router.post(
 
 router.post(
   "/login",
+  limitarLogin,
   validar(credenciales),
   asyncHandler(async (req, res) => {
     const [rows] = await pool.execute(
-      "SELECT id_usuario, nombre, email, contrasena_hash, rol FROM usuarios WHERE email = ? AND activo = TRUE",
+      `SELECT id_usuario,nombre,email,contrasena_hash,rol,activo,
+       intentos_fallidos,bloqueado_hasta
+       FROM usuarios WHERE email=?`,
       [req.body.email],
     );
     const usuario = rows[0];
     if (
-      !usuario ||
-      !(await bcrypt.compare(req.body.contrasena, usuario.contrasena_hash))
+      usuario?.bloqueado_hasta &&
+      new Date(usuario.bloqueado_hasta).getTime() > Date.now()
     ) {
+      throw new AppError(
+        429,
+        "La cuenta está temporalmente bloqueada por varios intentos fallidos. Probá nuevamente más tarde.",
+      );
+    }
+    const hashComparacion =
+      usuario?.contrasena_hash ??
+      "$2b$12$C6UzMDM.H6dfI/f/IKcEe.yrH5OVmO9pQZ8WfE5IKzJ5YVZ9Yp6Ke";
+    const contrasenaCorrecta = await bcrypt.compare(
+      req.body.contrasena,
+      hashComparacion,
+    );
+    if (!usuario || !usuario.activo || !contrasenaCorrecta) {
+      if (usuario?.activo) {
+        const intentos = Number(usuario.intentos_fallidos) + 1;
+        const bloquear = intentos >= 5;
+        await pool.execute(
+          `UPDATE usuarios SET intentos_fallidos=?,
+           bloqueado_hasta=${bloquear ? "DATE_ADD(NOW(),INTERVAL 15 MINUTE)" : "NULL"}
+           WHERE id_usuario=?`,
+          [intentos, usuario.id_usuario],
+        );
+        await pool.execute(
+          `INSERT INTO eventos_seguridad
+           (id_usuario,tipo,email_intentado,ip,detalle) VALUES (?,?,?,?,?)`,
+          [
+            usuario.id_usuario,
+            bloquear ? "BLOQUEO_TEMPORAL" : "LOGIN_FALLIDO",
+            req.body.email,
+            req.ip,
+            bloquear
+              ? "Cuenta bloqueada durante 15 minutos por intentos fallidos."
+              : `Intento fallido ${intentos} de 5.`,
+          ],
+        );
+      }
       throw new AppError(401, "Email o contraseña incorrectos.");
     }
     const token = jwt.sign({ email: usuario.email }, config.jwtSecret, {
@@ -51,7 +104,8 @@ router.post(
       expiresIn: config.jwtExpiresIn,
     });
     await pool.execute(
-      "UPDATE usuarios SET ultimo_acceso=NOW() WHERE id_usuario=?",
+      `UPDATE usuarios SET ultimo_acceso=NOW(),intentos_fallidos=0,
+       bloqueado_hasta=NULL WHERE id_usuario=?`,
       [usuario.id_usuario],
     );
     res.json({
@@ -87,7 +141,7 @@ const actualizarPerfil = z
       .max(150)
       .transform((value) => value.toLowerCase()),
     contrasenaActual: z.string().max(72).optional().or(z.literal("")),
-    contrasenaNueva: z.string().min(8).max(72).optional().or(z.literal("")),
+    contrasenaNueva: contrasenaFuerte.optional().or(z.literal("")),
   })
   .refine((data) => !data.contrasenaNueva || data.contrasenaActual, {
     message: "Ingresá tu contraseña actual para cambiarla.",
