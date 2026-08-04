@@ -2,7 +2,10 @@ import express from "express";
 import cors from "cors";
 import helmet from "helmet";
 import { config } from "./config.js";
-import { requerirAutenticacion } from "./middleware/auth.js";
+import {
+  requerirAdministrador,
+  requerirAutenticacion,
+} from "./middleware/auth.js";
 import { manejarErrores, rutaNoEncontrada } from "./middleware/errors.js";
 import authRoutes from "./routes/auth.routes.js";
 import viajesRoutes from "./routes/viajes.routes.js";
@@ -10,6 +13,7 @@ import participantesRoutes from "./routes/participantes.routes.js";
 import cotizacionesRoutes from "./routes/cotizaciones.routes.js";
 import presupuestosRoutes from "./routes/presupuestos.routes.js";
 import finanzasRoutes from "./routes/finanzas.routes.js";
+import adminRoutes from "./routes/admin.routes.js";
 import { requerirEdicionViaje, versionarMutacion } from "./middleware/sync.js";
 
 export const app = express();
@@ -19,6 +23,12 @@ app.use(express.json({ limit: "1mb" }));
 
 app.get("/api/salud", (_req, res) => res.json({ estado: "ok" }));
 app.use("/api/auth", authRoutes);
+app.use(
+  "/api/admin",
+  requerirAutenticacion,
+  requerirAdministrador,
+  adminRoutes,
+);
 app.use(
   "/api/viajes/:idViaje",
   requerirAutenticacion,

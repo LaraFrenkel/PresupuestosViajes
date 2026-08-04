@@ -3622,7 +3622,7 @@ function ResumenViaje({ viaje, onNavigate }) {
   );
 }
 
-function Dashboard({ usuario, onLogout, onUsuarioUpdate }) {
+function Dashboard({ usuario, onLogout, onUsuarioUpdate, onAdmin }) {
   const [viajes, setViajes] = useState([]);
   const [seleccionado, setSeleccionado] = useState(null);
   const [formVisible, setFormVisible] = useState(false);
@@ -3716,6 +3716,7 @@ function Dashboard({ usuario, onLogout, onUsuarioUpdate }) {
           usuario={usuario}
           onLogout={salir}
           onUsuarioUpdate={onUsuarioUpdate}
+          onAdmin={onAdmin}
         />
         <main className="content">
           <button
@@ -3857,6 +3858,7 @@ function Dashboard({ usuario, onLogout, onUsuarioUpdate }) {
         usuario={usuario}
         onLogout={salir}
         onUsuarioUpdate={onUsuarioUpdate}
+        onAdmin={onAdmin}
       />
       <main className="content">
         <section className="welcome">
@@ -4240,7 +4242,245 @@ function PerfilUsuario({ usuario, onClose, onUpdate, onDelete }) {
   );
 }
 
-function Header({ usuario, onLogout, onUsuarioUpdate }) {
+function PanelAdministracion({ usuario, onViajes, onLogout }) {
+  const [usuarios, setUsuarios] = useState([]);
+  const [acciones, setAcciones] = useState([]);
+  const [busqueda, setBusqueda] = useState("");
+  const [gestion, setGestion] = useState(null);
+  const [motivo, setMotivo] = useState("");
+  const [error, setError] = useState("");
+  const [cargando, setCargando] = useState(true);
+
+  async function cargar() {
+    try {
+      const [lista, historial] = await Promise.all([
+        api("/admin/usuarios"),
+        api("/admin/acciones"),
+      ]);
+      setUsuarios(lista);
+      setAcciones(historial);
+      setError("");
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setCargando(false);
+    }
+  }
+
+  useEffect(() => {
+    cargar();
+  }, []);
+
+  async function cambiarAcceso(event) {
+    event.preventDefault();
+    try {
+      await api(`/admin/usuarios/${gestion.idUsuario}/acceso`, {
+        method: "PATCH",
+        body: JSON.stringify({ accion: gestion.accion, motivo }),
+      });
+      setGestion(null);
+      setMotivo("");
+      await cargar();
+    } catch (e) {
+      setError(e.message);
+    }
+  }
+
+  const visibles = usuarios.filter((persona) =>
+    `${persona.nombre} ${persona.email}`
+      .toLowerCase()
+      .includes(busqueda.toLowerCase()),
+  );
+  const fecha = (valor) =>
+    valor ? new Date(valor).toLocaleString("es-AR") : "Nunca";
+
+  return (
+    <div className="app-shell admin-shell">
+      <header className="topbar">
+        <div className="brand">
+          <span className="brand-mark">B</span>
+          <span>Brújula · Administración</span>
+        </div>
+        <div className="user-menu">
+          <button className="button ghost" onClick={onViajes}>
+            Mis viajes
+          </button>
+          <button className="text-button" onClick={onLogout}>
+            Salir
+          </button>
+        </div>
+      </header>
+      <main className="content admin-content">
+        <section className="admin-heading">
+          <div>
+            <p className="eyebrow">Acceso restringido</p>
+            <h1>Usuarios</h1>
+            <p>
+              Administrá el acceso sin consultar viajes, pagos ni información
+              financiera.
+            </p>
+          </div>
+          <div className="admin-stat">
+            <strong>{usuarios.length}</strong>
+            <span>cuentas registradas</span>
+          </div>
+        </section>
+        {error && <div className="alert">{error}</div>}
+        <section className="panel admin-users">
+          <div className="admin-toolbar">
+            <div>
+              <h2>Directorio de usuarios</h2>
+              <p className="empty-copy">
+                Solo se muestran datos de la cuenta y actividad general.
+              </p>
+            </div>
+            <input
+              type="search"
+              value={busqueda}
+              onChange={(event) => setBusqueda(event.target.value)}
+              placeholder="Buscar por nombre o correo"
+              aria-label="Buscar usuarios"
+            />
+          </div>
+          {cargando ? (
+            <p>Cargando usuarios…</p>
+          ) : (
+            <div className="admin-user-list">
+              {visibles.map((persona) => {
+                const propia = persona.idUsuario === usuario.idUsuario;
+                return (
+                  <article className="admin-user-card" key={persona.idUsuario}>
+                    <span className="user-avatar">
+                      {persona.nombre?.[0]?.toUpperCase()}
+                    </span>
+                    <div className="admin-user-main">
+                      <div>
+                        <strong>{persona.nombre}</strong>
+                        {persona.rol === "ADMIN" && (
+                          <span className="admin-badge">Admin</span>
+                        )}
+                        {!persona.activo && (
+                          <span className="blocked-badge">Bloqueada</span>
+                        )}
+                      </div>
+                      <small>{persona.email}</small>
+                      <div className="admin-user-meta">
+                        <span>
+                          Último acceso: {fecha(persona.ultimoAcceso)}
+                        </span>
+                        <span>{persona.cantidadViajes} viajes</span>
+                        <span>
+                          {persona.cantidadColaboraciones} colaboraciones
+                        </span>
+                      </div>
+                      {!persona.activo && persona.motivoBloqueo && (
+                        <p className="block-reason">
+                          Motivo: {persona.motivoBloqueo}
+                        </p>
+                      )}
+                    </div>
+                    <div>
+                      {!propia && (
+                        <button
+                          type="button"
+                          className={`button ${persona.activo ? "danger-button" : "secondary"}`}
+                          onClick={() => {
+                            setGestion({
+                              ...persona,
+                              accion: persona.activo ? "BLOQUEAR" : "RESTAURAR",
+                            });
+                            setMotivo("");
+                          }}
+                        >
+                          {persona.activo
+                            ? "Bloquear acceso"
+                            : "Restaurar acceso"}
+                        </button>
+                      )}
+                      {propia && <small>Tu cuenta</small>}
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+          )}
+        </section>
+        <section className="panel admin-history">
+          <h2>Historial de accesos</h2>
+          {acciones.length ? (
+            acciones.map((accion) => (
+              <div key={accion.idAccion}>
+                <span
+                  className={`status ${accion.accion === "BLOQUEAR" ? "blocked-badge" : ""}`}
+                >
+                  {accion.accion === "BLOQUEAR" ? "Bloqueo" : "Restauración"}
+                </span>
+                <div>
+                  <strong>{accion.usuarioNombre || "Usuario eliminado"}</strong>
+                  <small>{accion.usuarioEmail}</small>
+                  <p>{accion.motivo}</p>
+                </div>
+                <small>{fecha(accion.creadoEn)}</small>
+              </div>
+            ))
+          ) : (
+            <p className="empty-copy">
+              Todavía no se realizaron cambios de acceso.
+            </p>
+          )}
+        </section>
+      </main>
+      {gestion && (
+        <div className="profile-overlay" onMouseDown={() => setGestion(null)}>
+          <form
+            className="admin-action-dialog"
+            onSubmit={cambiarAcceso}
+            onMouseDown={(event) => event.stopPropagation()}
+          >
+            <p className="eyebrow">Administrar acceso</p>
+            <h2>
+              {gestion.accion === "BLOQUEAR" ? "Bloquear" : "Restaurar"} a{" "}
+              {gestion.nombre}
+            </h2>
+            <p>
+              {gestion.accion === "BLOQUEAR"
+                ? "La persona perderá el acceso inmediatamente, incluso si ya inició sesión."
+                : "La persona podrá volver a iniciar sesión y usar la aplicación."}
+            </p>
+            <label>
+              Motivo
+              <textarea
+                required
+                minLength="5"
+                maxLength="300"
+                value={motivo}
+                onChange={(event) => setMotivo(event.target.value)}
+                placeholder="Explicá brevemente la razón"
+              />
+            </label>
+            <div className="profile-actions">
+              <button
+                type="button"
+                className="button ghost"
+                onClick={() => setGestion(null)}
+              >
+                Cancelar
+              </button>
+              <button
+                type="submit"
+                className={`button ${gestion.accion === "BLOQUEAR" ? "danger-button" : "secondary"}`}
+              >
+                Confirmar
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function Header({ usuario, onLogout, onUsuarioUpdate, onAdmin }) {
   const [perfilVisible, setPerfilVisible] = useState(false);
   return (
     <>
@@ -4250,6 +4490,11 @@ function Header({ usuario, onLogout, onUsuarioUpdate }) {
           <span>Brújula</span>
         </div>
         <div className="user-menu">
+          {usuario.rol === "ADMIN" && (
+            <button type="button" className="text-button" onClick={onAdmin}>
+              Administración
+            </button>
+          )}
           <button
             type="button"
             className="profile-trigger"
@@ -4390,6 +4635,7 @@ function EstadoConexion() {
 }
 
 export default function App() {
+  const [vista, setVista] = useState("viajes");
   const [sesion, setSesion] = useState(() => {
     const token = localStorage.getItem("token");
     const usuario = localStorage.getItem("usuario");
@@ -4423,13 +4669,26 @@ export default function App() {
   function actualizarUsuario(usuario) {
     setSesion((actual) => ({ ...actual, usuario }));
   }
+  function cerrarSesion() {
+    localStorage.removeItem("token");
+    localStorage.removeItem("usuario");
+    setVista("viajes");
+    setSesion(null);
+  }
   return (
     <>
-      {sesion ? (
+      {sesion?.usuario.rol === "ADMIN" && vista === "admin" ? (
+        <PanelAdministracion
+          usuario={sesion.usuario}
+          onViajes={() => setVista("viajes")}
+          onLogout={cerrarSesion}
+        />
+      ) : sesion ? (
         <Dashboard
           usuario={sesion.usuario}
-          onLogout={() => setSesion(null)}
+          onLogout={cerrarSesion}
           onUsuarioUpdate={actualizarUsuario}
+          onAdmin={() => setVista("admin")}
         />
       ) : (
         <Auth onLogin={login} />
