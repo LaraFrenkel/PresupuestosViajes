@@ -4055,6 +4055,8 @@ function PerfilUsuario({ usuario, onClose, onUpdate, onDelete }) {
   const [contrasenaEliminar, setContrasenaEliminar] = useState("");
   const [error, setError] = useState("");
   const [guardando, setGuardando] = useState(false);
+  const [mostrarContrasena, setMostrarContrasena] = useState(false);
+  const [mostrarEliminar, setMostrarEliminar] = useState(false);
 
   const cambiar = (campo) => (event) =>
     setForm((actual) => ({ ...actual, [campo]: event.target.value }));
@@ -4143,29 +4145,42 @@ function PerfilUsuario({ usuario, onClose, onUpdate, onDelete }) {
               onChange={cambiar("email")}
             />
           </label>
-          <h3>Cambiar contraseña</h3>
-          <p className="empty-copy">
-            Dejá estos campos vacíos para conservarla.
-          </p>
-          <label>
-            Contraseña actual
-            <input
-              type="password"
-              autoComplete="current-password"
-              value={form.contrasenaActual}
-              onChange={cambiar("contrasenaActual")}
-            />
-          </label>
-          <label>
-            Contraseña nueva
-            <input
-              type="password"
-              minLength="8"
-              autoComplete="new-password"
-              value={form.contrasenaNueva}
-              onChange={cambiar("contrasenaNueva")}
-            />
-          </label>
+          <button
+            type="button"
+            className="profile-option"
+            onClick={() => setMostrarContrasena((visible) => !visible)}
+            aria-expanded={mostrarContrasena}
+          >
+            <span>
+              <strong>Cambiar contraseña</strong>
+              <small>Solo si querés usar una nueva</small>
+            </span>
+            <span aria-hidden="true">{mostrarContrasena ? "−" : "+"}</span>
+          </button>
+          {mostrarContrasena && (
+            <div className="profile-option-content">
+              <label>
+                Contraseña actual
+                <input
+                  type="password"
+                  autoComplete="current-password"
+                  value={form.contrasenaActual}
+                  onChange={cambiar("contrasenaActual")}
+                />
+              </label>
+              <label>
+                Contraseña nueva
+                <input
+                  type="password"
+                  minLength="8"
+                  autoComplete="new-password"
+                  value={form.contrasenaNueva}
+                  onChange={cambiar("contrasenaNueva")}
+                />
+                <small>Mínimo 8 caracteres</small>
+              </label>
+            </div>
+          )}
           {error && <div className="alert">{error}</div>}
           <div className="form-actions">
             <button type="button" className="button ghost" onClick={onClose}>
@@ -4181,27 +4196,44 @@ function PerfilUsuario({ usuario, onClose, onUpdate, onDelete }) {
           </div>
         </form>
         <div className="delete-account">
-          <h3>Eliminar cuenta</h3>
-          <p>
-            Se eliminarán definitivamente tu cuenta y todos los viajes que
-            creaste.
-          </p>
-          <label>
-            Confirmá tu contraseña
-            <input
-              type="password"
-              value={contrasenaEliminar}
-              onChange={(event) => setContrasenaEliminar(event.target.value)}
-            />
-          </label>
           <button
             type="button"
-            className="button danger-button"
-            disabled={guardando}
-            onClick={eliminarCuenta}
+            className="profile-option danger-option"
+            onClick={() => setMostrarEliminar((visible) => !visible)}
+            aria-expanded={mostrarEliminar}
           >
-            Eliminar mi cuenta
+            <span>
+              <strong>Eliminar cuenta</strong>
+              <small>Esta acción es permanente</small>
+            </span>
+            <span aria-hidden="true">{mostrarEliminar ? "−" : "+"}</span>
           </button>
+          {mostrarEliminar && (
+            <div className="profile-option-content">
+              <p>
+                Se eliminarán tu cuenta y todos los viajes que creaste. Esta
+                acción no se puede deshacer.
+              </p>
+              <label>
+                Contraseña para confirmar
+                <input
+                  type="password"
+                  value={contrasenaEliminar}
+                  onChange={(event) =>
+                    setContrasenaEliminar(event.target.value)
+                  }
+                />
+              </label>
+              <button
+                type="button"
+                className="button danger-button"
+                disabled={guardando}
+                onClick={eliminarCuenta}
+              >
+                Eliminar mi cuenta
+              </button>
+            </div>
+          )}
         </div>
       </section>
     </div>

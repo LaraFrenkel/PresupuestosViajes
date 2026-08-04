@@ -236,22 +236,106 @@ textarea:focus {
   background: rgba(18, 45, 42, 0.55);
 }
 .profile-panel {
-  width: min(560px, 100%);
+  width: min(620px, 100%);
   max-height: calc(100vh - 2rem);
   overflow-y: auto;
-  padding: clamp(1.25rem, 4vw, 2rem);
+  padding: 0;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: var(--paper);
   box-shadow: 0 24px 70px rgba(15, 40, 37, 0.25);
 }
+.profile-panel .panel-heading {
+  margin: 0;
+  padding: 1.5rem clamp(1.25rem, 4vw, 2rem);
+  border-bottom: 1px solid var(--line);
+  background: #f4f7f3;
+}
+.profile-panel .panel-heading h2 {
+  margin-bottom: 0;
+}
+.profile-panel form {
+  display: grid;
+  gap: 0.25rem;
+  padding: 1.5rem clamp(1.25rem, 4vw, 2rem);
+}
+.profile-panel form > label {
+  margin-bottom: 0.75rem;
+  font-size: 0.88rem;
+}
 .profile-panel h3 {
-  margin-bottom: 0.35rem;
+  margin: 1rem 0 0.2rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--line);
+  font-size: 1rem;
+}
+.profile-panel .empty-copy {
+  margin-bottom: 0.75rem;
+}
+.profile-panel .form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  margin-top: 0.75rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--line);
+}
+.profile-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  margin-top: 0.5rem;
+  padding: 1rem;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #f7f8f4;
+  color: var(--ink);
+  text-align: left;
+}
+.profile-option > span:first-child {
+  display: grid;
+  gap: 0.2rem;
+}
+.profile-option small {
+  color: var(--muted);
+  font-size: 0.8rem;
+  font-weight: 400;
+}
+.profile-option > span:last-child {
+  font-size: 1.35rem;
+  color: var(--green);
+}
+.profile-option-content {
+  display: grid;
+  gap: 0.25rem;
+  padding: 1rem 0.25rem 0;
+}
+.profile-option-content label {
+  margin-bottom: 0.75rem;
 }
 .delete-account {
-  margin-top: 2rem;
-  padding-top: 1.5rem;
-  border-top: 1px solid #e8b8aa;
+  margin: 0 clamp(1.25rem, 4vw, 2rem) 2rem;
+  padding: 1.25rem;
+  border: 1px solid #e8b8aa;
+  border-radius: 6px;
+  background: #fff8f5;
+}
+.delete-account .profile-option {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+.delete-account .danger-option,
+.delete-account .danger-option > span:last-child {
+  color: #8d3022;
+}
+.delete-account h3 {
+  margin-top: 0;
+  padding-top: 0;
+  border: 0;
+  color: #8d3022;
 }
 .delete-account p {
   color: var(--muted);
@@ -261,6 +345,23 @@ textarea:focus {
   border-color: #b33e2d;
   background: #b33e2d;
   color: #fff;
+}
+@media (max-width: 560px) {
+  .profile-overlay {
+    padding: 0;
+    align-items: end;
+  }
+  .profile-panel {
+    max-height: 94vh;
+    border-radius: 14px 14px 0 0;
+  }
+  .profile-panel .form-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+  .delete-account .danger-button {
+    width: 100%;
+  }
 }
 .user-avatar,
 .avatar {
