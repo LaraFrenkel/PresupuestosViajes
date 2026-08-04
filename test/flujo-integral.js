@@ -145,6 +145,38 @@ try {
     "acceso colaborativo",
   );
 
+  ok(
+    await api
+      .patch(`/api/viajes/${idViaje}/colaboradores/${idUsuarioColaboradora}`)
+      .set(auth)
+      .send({ rol: "LECTOR" }),
+    200,
+    "cambiar colaboradora a solo lectura",
+  );
+  ok(
+    await api
+      .post(`/api/viajes/${idViaje}/participantes`)
+      .set({ Authorization: `Bearer ${loginColaboradora.token}` })
+      .send({ nombre: "No debe crearse", color: "#829c98" }),
+    403,
+    "bloquear cambios en solo lectura",
+  );
+  ok(
+    await api
+      .get(`/api/viajes/${idViaje}`)
+      .set({ Authorization: `Bearer ${loginColaboradora.token}` }),
+    200,
+    "mantener consulta en solo lectura",
+  );
+  ok(
+    await api
+      .patch(`/api/viajes/${idViaje}/colaboradores/${idUsuarioColaboradora}`)
+      .set(auth)
+      .send({ rol: "EDITOR" }),
+    200,
+    "devolver permiso de ediciÃ³n",
+  );
+
   const p1 = ok(
     await api
       .post(`/api/viajes/${idViaje}/participantes`)

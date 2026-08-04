@@ -1,4 +1,27 @@
 import { pool } from "../db.js";
+import { AppError } from "../errors.js";
+
+export async function requerirEdicionViaje(req, _res, next) {
+  if (["GET", "HEAD", "OPTIONS"].includes(req.method)) return next();
+  try {
+    const [rows] = await pool.execute(
+      `SELECT v.id_usuario=? AS propietaria,cv.rol
+       FROM viajes v LEFT JOIN colaboradores_viaje cv
+         ON cv.id_viaje=v.id_viaje AND cv.id_usuario=?
+       WHERE v.id_viaje=?`,
+      [req.usuario.idUsuario, req.usuario.idUsuario, req.params.idViaje],
+    );
+    if (!rows[0]) return next();
+    if (!rows[0].propietaria && rows[0].rol !== "EDITOR") {
+      return next(
+        new AppError(403, "Tu acceso a este viaje es de solo lectura."),
+      );
+    }
+    next();
+  } catch (error) {
+    next(error);
+  }
+}
 
 async function registrar(req) {
   const connection = await pool.getConnection();

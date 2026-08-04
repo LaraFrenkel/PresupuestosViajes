@@ -35,13 +35,16 @@ CREATE TABLE IF NOT EXISTS viajes (
 CREATE TABLE IF NOT EXISTS colaboradores_viaje (
   id_viaje BIGINT UNSIGNED NOT NULL,
   id_usuario BIGINT UNSIGNED NOT NULL,
-  rol ENUM('EDITOR') NOT NULL DEFAULT 'EDITOR',
+  rol ENUM('EDITOR','LECTOR') NOT NULL DEFAULT 'EDITOR',
   creado_en TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (id_viaje, id_usuario),
   CONSTRAINT fk_colaborador_viaje FOREIGN KEY (id_viaje) REFERENCES viajes(id_viaje) ON DELETE CASCADE,
   CONSTRAINT fk_colaborador_usuario FOREIGN KEY (id_usuario) REFERENCES usuarios(id_usuario) ON DELETE CASCADE,
   INDEX idx_colaborador_usuario (id_usuario)
 ) ENGINE=InnoDB;
+
+ALTER TABLE colaboradores_viaje
+  MODIFY rol ENUM('EDITOR','LECTOR') NOT NULL DEFAULT 'EDITOR';
 
 CREATE TABLE IF NOT EXISTS sincronizacion_viaje (
   id_viaje BIGINT UNSIGNED PRIMARY KEY,
