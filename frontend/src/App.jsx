@@ -24,6 +24,20 @@ const estadoTexto = {
   ARCHIVADO: "Archivado",
 };
 
+const tipoViajeTexto = {
+  CRUCERO: "Crucero",
+  VACACIONES: "Vacaciones",
+  ESCAPADA: "Escapada",
+  COMBINADO: "Viaje combinado",
+  PLAYA: "Playa",
+  AVENTURA: "Aventura",
+  RUTA: "Viaje de ruta",
+  CIUDAD: "Turismo urbano",
+  NEGOCIOS: "Negocios",
+  VISITA_FAMILIAR: "Visita familiar",
+  OTRO: "Otro",
+};
+
 const cotizacionVacia = {
   agencia: "",
   naviera: "",
@@ -213,10 +227,11 @@ function ViajeForm({ inicial, onSave, onCancel, onDelete }) {
         <label>
           Tipo
           <select value={form.tipoViaje} onChange={update("tipoViaje")}>
-            <option>CRUCERO</option>
-            <option>PLAYA</option>
-            <option>AVENTURA</option>
-            <option>OTRO</option>
+            {Object.entries(tipoViajeTexto).map(([valor, texto]) => (
+              <option key={valor} value={valor}>
+                {texto}
+              </option>
+            ))}
           </select>
         </label>
         <label>
@@ -229,16 +244,22 @@ function ViajeForm({ inicial, onSave, onCancel, onDelete }) {
             ))}
           </select>
         </label>
+        {form.tipoViaje === "CRUCERO" && (
+          <>
+            <label>
+              Naviera
+              <input value={form.naviera ?? ""} onChange={update("naviera")} />
+            </label>
+            <label>
+              Barco
+              <input value={form.barco ?? ""} onChange={update("barco")} />
+            </label>
+          </>
+        )}
         <label>
-          Naviera
-          <input value={form.naviera ?? ""} onChange={update("naviera")} />
-        </label>
-        <label>
-          Barco
-          <input value={form.barco ?? ""} onChange={update("barco")} />
-        </label>
-        <label>
-          Puerto de salida
+          {form.tipoViaje === "CRUCERO"
+            ? "Puerto de salida"
+            : "Lugar de salida"}
           <input
             value={form.puertoSalida ?? ""}
             onChange={update("puertoSalida")}
@@ -854,14 +875,18 @@ function CotizacionForm({ viaje, inicial, onSave, onCancel }) {
             )}
           </select>
         </label>
-        <label>
-          Naviera
-          <input value={form.naviera ?? ""} onChange={update("naviera")} />
-        </label>
-        <label>
-          Barco
-          <input value={form.barco ?? ""} onChange={update("barco")} />
-        </label>
+        {viaje.tipoViaje === "CRUCERO" && (
+          <>
+            <label>
+              Naviera
+              <input value={form.naviera ?? ""} onChange={update("naviera")} />
+            </label>
+            <label>
+              Barco
+              <input value={form.barco ?? ""} onChange={update("barco")} />
+            </label>
+          </>
+        )}
         <label>
           Fecha de cotización
           <input
@@ -898,7 +923,9 @@ function CotizacionForm({ viaje, inicial, onSave, onCancel }) {
           </select>
         </label>
         <label>
-          Tipo de camarote
+          {viaje.tipoViaje === "CRUCERO"
+            ? "Tipo de camarote"
+            : "Tipo de alojamiento"}
           <input
             value={form.tipoCamarote ?? ""}
             onChange={update("tipoCamarote")}
@@ -3622,6 +3649,303 @@ function ResumenViaje({ viaje, onNavigate }) {
   );
 }
 
+const trasladoVacio = {
+  tipo: "AVION",
+  origen: "",
+  destino: "",
+  fechaSalida: "",
+  fechaLlegada: "",
+  proveedor: "",
+  referencia: "",
+  moneda: "USD",
+  importe: "",
+  notas: "",
+  orden: 0,
+};
+
+const transporteTexto = {
+  AVION: "AviÃ³n",
+  AUTO: "Auto",
+  TREN: "Tren",
+  MICRO: "Micro",
+  BARCO: "Barco / crucero",
+  FERRY: "Ferry",
+  TRANSPORTE_PUBLICO: "Transporte pÃºblico",
+  OTRO: "Otro",
+};
+
+function Traslados({ viaje }) {
+  const [traslados, setTraslados] = useState([]);
+  const [form, setForm] = useState(trasladoVacio);
+  const [editando, setEditando] = useState(null);
+  const [visible, setVisible] = useState(false);
+  const [error, setError] = useState("");
+
+  async function cargar() {
+    try {
+      setTraslados(await api(`/viajes/${viaje.idViaje}/traslados`));
+      setError("");
+    } catch (e) {
+      setError(e.message);
+    }
+  }
+
+  useEffect(() => {
+    cargar();
+  }, [viaje.idViaje]);
+
+  const cambiar = (campo) => (event) =>
+    setForm((actual) => ({ ...actual, [campo]: event.target.value }));
+
+  function nuevo() {
+    setEditando(null);
+    setForm({ ...trasladoVacio, moneda: viaje.monedaPrincipal });
+    setVisible(true);
+  }
+
+  async function guardar(event) {
+    event.preventDefault();
+    try {
+      await api(
+        `/viajes/${viaje.idViaje}/traslados${editando ? `/${editando}` : ""}`,
+        {
+          method: editando ? "PUT" : "POST",
+          body: JSON.stringify({
+            ...form,
+            importe: form.importe === "" ? null : Number(form.importe),
+            orden: Number(form.orden || 0),
+            fechaSalida: form.fechaSalida || null,
+            fechaLlegada: form.fechaLlegada || null,
+          }),
+        },
+      );
+      setVisible(false);
+      await cargar();
+    } catch (e) {
+      setError(e.message);
+    }
+  }
+
+  async function eliminar(traslado) {
+    if (
+      !confirm(
+        `Â¿Eliminar el traslado ${traslado.origen} â†’ ${traslado.destino}?`,
+      )
+    )
+      return;
+    try {
+      await api(`/viajes/${viaje.idViaje}/traslados/${traslado.idTraslado}`, {
+        method: "DELETE",
+      });
+      await cargar();
+    } catch (e) {
+      setError(e.message);
+    }
+  }
+
+  return (
+    <section className="panel transfers-section">
+      <div className="section-heading">
+        <div>
+          <p className="eyebrow">Ruta del viaje</p>
+          <h2>Traslados</h2>
+          <p>RegistrÃ¡ cada tramo y el medio de transporte utilizado.</p>
+        </div>
+        {viaje.rolAcceso !== "LECTOR" && (
+          <button className="button primary" onClick={nuevo}>
+            + Agregar traslado
+          </button>
+        )}
+      </div>
+      {error && <div className="alert">{error}</div>}
+      {traslados.length ? (
+        <div className="transfer-timeline">
+          {traslados.map((traslado, indice) => (
+            <article className="transfer-card" key={traslado.idTraslado}>
+              <div className="transfer-marker">{indice + 1}</div>
+              <div className="transfer-main">
+                <span className="status">{transporteTexto[traslado.tipo]}</span>
+                <h3>
+                  {traslado.origen} <span aria-hidden="true">â†’</span>{" "}
+                  {traslado.destino}
+                </h3>
+                <p>
+                  {traslado.fechaSalida
+                    ? new Date(traslado.fechaSalida).toLocaleString("es-AR")
+                    : "Fecha por definir"}
+                  {traslado.proveedor ? ` Â· ${traslado.proveedor}` : ""}
+                </p>
+                {traslado.referencia && (
+                  <small>Reserva: {traslado.referencia}</small>
+                )}
+              </div>
+              <div className="transfer-side">
+                {traslado.importe !== null &&
+                  traslado.importe !== undefined && (
+                    <strong>{money(traslado.importe, traslado.moneda)}</strong>
+                  )}
+                {viaje.rolAcceso !== "LECTOR" && (
+                  <div className="row-actions">
+                    <button
+                      className="text-button"
+                      onClick={() => {
+                        setEditando(traslado.idTraslado);
+                        setForm({
+                          ...trasladoVacio,
+                          ...traslado,
+                          importe: traslado.importe ?? "",
+                        });
+                        setVisible(true);
+                      }}
+                    >
+                      Editar
+                    </button>
+                    <button
+                      className="text-button danger"
+                      onClick={() => eliminar(traslado)}
+                    >
+                      Eliminar
+                    </button>
+                  </div>
+                )}
+              </div>
+            </article>
+          ))}
+        </div>
+      ) : (
+        <div className="empty-state compact">
+          <span>â†’</span>
+          <h3>TodavÃ­a no hay traslados</h3>
+          <p>AgregÃ¡ el primer tramo para armar la ruta completa.</p>
+        </div>
+      )}
+      {visible && (
+        <div className="profile-overlay" onMouseDown={() => setVisible(false)}>
+          <form
+            className="profile-panel transfer-form"
+            onSubmit={guardar}
+            onMouseDown={(event) => event.stopPropagation()}
+          >
+            <div className="panel-heading">
+              <div>
+                <p className="eyebrow">Traslado</p>
+                <h2>{editando ? "Editar tramo" : "Nuevo tramo"}</h2>
+              </div>
+              <button
+                type="button"
+                className="icon-button"
+                onClick={() => setVisible(false)}
+              >
+                Ã—
+              </button>
+            </div>
+            <div className="transfer-form-body">
+              <label>
+                Transporte
+                <select value={form.tipo} onChange={cambiar("tipo")}>
+                  {Object.entries(transporteTexto).map(([valor, texto]) => (
+                    <option key={valor} value={valor}>
+                      {texto}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                Origen
+                <input
+                  required
+                  value={form.origen}
+                  onChange={cambiar("origen")}
+                />
+              </label>
+              <label>
+                Destino
+                <input
+                  required
+                  value={form.destino}
+                  onChange={cambiar("destino")}
+                />
+              </label>
+              <label>
+                Salida
+                <input
+                  type="datetime-local"
+                  value={form.fechaSalida ?? ""}
+                  onChange={cambiar("fechaSalida")}
+                />
+              </label>
+              <label>
+                Llegada
+                <input
+                  type="datetime-local"
+                  value={form.fechaLlegada ?? ""}
+                  onChange={cambiar("fechaLlegada")}
+                />
+              </label>
+              <label>
+                Empresa o proveedor
+                <input
+                  value={form.proveedor ?? ""}
+                  onChange={cambiar("proveedor")}
+                />
+              </label>
+              <label>
+                NÃºmero de reserva
+                <input
+                  value={form.referencia ?? ""}
+                  onChange={cambiar("referencia")}
+                />
+              </label>
+              <label>
+                Importe
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={form.importe ?? ""}
+                  onChange={cambiar("importe")}
+                />
+              </label>
+              <label>
+                Moneda
+                <input
+                  maxLength="3"
+                  value={form.moneda ?? ""}
+                  onChange={(e) =>
+                    setForm((actual) => ({
+                      ...actual,
+                      moneda: e.target.value.toUpperCase(),
+                    }))
+                  }
+                />
+              </label>
+              <label className="wide-field">
+                Notas
+                <textarea
+                  value={form.notas ?? ""}
+                  onChange={cambiar("notas")}
+                />
+              </label>
+              <div className="profile-actions wide-field">
+                <button
+                  type="button"
+                  className="button ghost"
+                  onClick={() => setVisible(false)}
+                >
+                  Cancelar
+                </button>
+                <button type="submit" className="button primary">
+                  Guardar traslado
+                </button>
+              </div>
+            </div>
+          </form>
+        </div>
+      )}
+    </section>
+  );
+}
+
 function Dashboard({ usuario, onLogout, onUsuarioUpdate, onAdmin }) {
   const [viajes, setViajes] = useState([]);
   const [seleccionado, setSeleccionado] = useState(null);
@@ -3739,7 +4063,7 @@ function Dashboard({ usuario, onLogout, onUsuarioUpdate, onAdmin }) {
               )}
               <h1>{seleccionado.nombre}</h1>
               <p>
-                {seleccionado.puertoSalida || "Puerto por definir"} ·{" "}
+                {seleccionado.puertoSalida || "Salida por definir"} ·{" "}
                 {seleccionado.fechaSalida} → {seleccionado.fechaRegreso}
               </p>
               <EstadoSincronizacion viaje={seleccionado} />
@@ -3768,6 +4092,12 @@ function Dashboard({ usuario, onLogout, onUsuarioUpdate, onAdmin }) {
               onClick={() => setSeccion("participantes")}
             >
               Participantes
+            </button>
+            <button
+              className={seccion === "traslados" ? "active" : ""}
+              onClick={() => setSeccion("traslados")}
+            >
+              Traslados
             </button>
             <button
               className={seccion === "cotizaciones" ? "active" : ""}
@@ -3827,6 +4157,7 @@ function Dashboard({ usuario, onLogout, onUsuarioUpdate, onAdmin }) {
               onCountChange={() => cargar()}
             />
           )}{" "}
+          {seccion === "traslados" && <Traslados viaje={seleccionado} />}{" "}
           {seccion === "cotizaciones" && <Cotizaciones viaje={seleccionado} />}{" "}
           {seccion === "presupuesto" && (
             <Presupuesto
@@ -4793,7 +5124,7 @@ function TripCard({ viaje, onOpen, onArchive }) {
         </p>
         <div className="card-meta">
           <span>♙ {viaje.cantidadParticipantes} participantes</span>
-          <span>{viaje.tipoViaje}</span>
+          <span>{tipoViajeTexto[viaje.tipoViaje] || viaje.tipoViaje}</span>
         </div>
         <span className="open-trip">Abrir viaje →</span>
       </button>

@@ -68,6 +68,26 @@ CREATE TABLE IF NOT EXISTS viajes (
   INDEX idx_viajes_usuario_fecha (id_usuario, fecha_salida)
 ) ENGINE=InnoDB;
 
+CREATE TABLE IF NOT EXISTS traslados (
+  id_traslado BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  id_viaje BIGINT UNSIGNED NOT NULL,
+  tipo VARCHAR(30) NOT NULL,
+  origen VARCHAR(150) NOT NULL,
+  destino VARCHAR(150) NOT NULL,
+  fecha_salida DATETIME,
+  fecha_llegada DATETIME,
+  proveedor VARCHAR(120),
+  referencia VARCHAR(100),
+  moneda CHAR(3),
+  importe DECIMAL(14,2),
+  notas TEXT,
+  orden SMALLINT UNSIGNED NOT NULL DEFAULT 0,
+  creado_en TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  actualizado_en TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  CONSTRAINT fk_traslado_viaje FOREIGN KEY (id_viaje) REFERENCES viajes(id_viaje) ON DELETE CASCADE,
+  INDEX idx_traslados_viaje_orden (id_viaje, orden, fecha_salida)
+) ENGINE=InnoDB;
+
 CREATE TABLE IF NOT EXISTS colaboradores_viaje (
   id_viaje BIGINT UNSIGNED NOT NULL,
   id_usuario BIGINT UNSIGNED NOT NULL,

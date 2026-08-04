@@ -14,6 +14,7 @@ import cotizacionesRoutes from "./routes/cotizaciones.routes.js";
 import presupuestosRoutes from "./routes/presupuestos.routes.js";
 import finanzasRoutes from "./routes/finanzas.routes.js";
 import adminRoutes from "./routes/admin.routes.js";
+import trasladosRoutes from "./routes/traslados.routes.js";
 import { requerirEdicionViaje, versionarMutacion } from "./middleware/sync.js";
 import { limitarAdministracion } from "./middleware/rate-limit.js";
 
@@ -37,6 +38,11 @@ app.use(
   requerirAutenticacion,
   requerirEdicionViaje,
   versionarMutacion,
+);
+app.use(
+  "/api/viajes/:idViaje/traslados",
+  requerirAutenticacion,
+  trasladosRoutes,
 );
 app.use(
   "/api/viajes/:idViaje/cotizaciones",
