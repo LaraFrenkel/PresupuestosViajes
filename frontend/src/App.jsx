@@ -4073,7 +4073,7 @@ function PerfilUsuario({ usuario, onClose, onUpdate, onDelete }) {
         method: "PATCH",
         body: JSON.stringify(form),
       });
-      localStorage.setItem("token", data.token);
+      localStorage.removeItem("token");
       localStorage.setItem("usuario", JSON.stringify(data.usuario));
       onUpdate(data.usuario);
       onClose();
@@ -4892,10 +4892,15 @@ function EstadoConexion() {
 export default function App() {
   const [vista, setVista] = useState("viajes");
   const [sesion, setSesion] = useState(() => {
-    const token = localStorage.getItem("token");
     const usuario = localStorage.getItem("usuario");
-    return token && usuario ? { token, usuario: JSON.parse(usuario) } : null;
+    return usuario ? { usuario: JSON.parse(usuario) } : null;
   });
+  useEffect(() => {
+    const expirada = () => setSesion(null);
+    window.addEventListener("brujula:sesion-expirada", expirada);
+    return () =>
+      window.removeEventListener("brujula:sesion-expirada", expirada);
+  }, []);
   useEffect(() => {
     const esNumero = (target) => target?.matches?.('input[type="number"]');
     const bloquearRueda = (event) => {
@@ -4917,14 +4922,15 @@ export default function App() {
     };
   }, []);
   function login(data) {
-    localStorage.setItem("token", data.token);
+    localStorage.removeItem("token");
     localStorage.setItem("usuario", JSON.stringify(data.usuario));
-    setSesion(data);
+    setSesion({ usuario: data.usuario });
   }
   function actualizarUsuario(usuario) {
     setSesion((actual) => ({ ...actual, usuario }));
   }
   async function cerrarSesion() {
+    await api("/auth/logout", { method: "POST" }).catch(() => undefined);
     await borrarDatosLocales().catch(() => undefined);
     localStorage.removeItem("token");
     localStorage.removeItem("usuario");

@@ -51,3 +51,41 @@ test("aplica contraseñas fuertes y bloqueo temporal tras cinco fallos", async (
     registro.body.idUsuario,
   ]);
 });
+
+test("la sesión funciona con cookie HttpOnly y se elimina al salir", async () => {
+  const marca = Date.now();
+  const email = `cookie-${marca}@example.com`;
+  const contrasena = "Segura-1234";
+  const registro = await request(app).post("/api/auth/registro").send({
+    nombre: "Cookie prueba",
+    email,
+    contrasena,
+  });
+  const agente = request.agent(app);
+  const login = await agente
+    .post("/api/auth/login")
+    .send({ email, contrasena });
+  assert.equal(login.status, 200);
+  assert.match(login.headers["set-cookie"][0], /brujula_session=/);
+  assert.match(login.headers["set-cookie"][0], /HttpOnly/);
+  assert.match(login.headers["set-cookie"][0], /SameSite=Lax/);
+
+  const perfil = await agente.get("/api/auth/perfil");
+  assert.equal(perfil.status, 200);
+  assert.equal(perfil.body.email, email);
+  const csrf = await agente.patch("/api/auth/perfil").send({
+    nombre: "Intento externo",
+    email,
+    contrasenaActual: "",
+    contrasenaNueva: "",
+  });
+  assert.equal(csrf.status, 403);
+
+  const logout = await agente.post("/api/auth/logout");
+  assert.equal(logout.status, 204);
+  const perfilCerrado = await agente.get("/api/auth/perfil");
+  assert.equal(perfilCerrado.status, 401);
+  await pool.execute("DELETE FROM usuarios WHERE id_usuario=?", [
+    registro.body.idUsuario,
+  ]);
+});

@@ -5,12 +5,15 @@ import {
   marcarConflicto,
 } from "./offline-db.js";
 
-const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3000/api";
+const API_URL = import.meta.env.PROD
+  ? "/api"
+  : (import.meta.env.VITE_API_URL ?? "http://localhost:3000/api");
 
 function headers() {
+  const token = localStorage.getItem("token");
   return {
     "Content-Type": "application/json",
-    Authorization: `Bearer ${localStorage.getItem("token")}`,
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
   };
 }
 
@@ -22,7 +25,7 @@ export async function sincronizarViaje(idViaje, forzar = false) {
 
   const estadoResponse = await fetch(
     `${API_URL}/viajes/${idViaje}/sincronizacion?desde=0`,
-    { headers: headers() },
+    { headers: headers(), credentials: "include" },
   );
   if (!estadoResponse.ok)
     throw new Error("No se pudo comprobar la versión del viaje.");
@@ -43,6 +46,7 @@ export async function sincronizarViaje(idViaje, forzar = false) {
       method: operacion.method,
       headers: headers(),
       body: operacion.body,
+      credentials: "include",
     });
     if (!response.ok) {
       await marcarConflicto([operacion.id]);
