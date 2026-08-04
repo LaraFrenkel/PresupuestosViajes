@@ -9,7 +9,12 @@ const connection = await mysql.createConnection({
   password: process.env.DB_PASSWORD ?? "",
   ssl:
     process.env.DB_SSL === "true"
-      ? { rejectUnauthorized: process.env.DB_SSL_VERIFY !== "false" }
+      ? {
+          rejectUnauthorized: process.env.DB_SSL_VERIFY !== "false",
+          ...(process.env.DB_SSL_CA
+            ? { ca: process.env.DB_SSL_CA.replaceAll("\\n", "\n") }
+            : {}),
+        }
       : undefined,
   multipleStatements: true,
 });
