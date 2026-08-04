@@ -39,6 +39,13 @@ test("un administrador puede bloquear y restaurar el acceso sin ver datos sensib
   const adminAuth = { Authorization: `Bearer ${adminLogin.body.token}` };
   const usuarioAuth = { Authorization: `Bearer ${usuarioLogin.body.token}` };
 
+  const vistaLimpieza = await request(app)
+    .get("/api/admin/limpieza")
+    .set(adminAuth);
+  assert.equal(vistaLimpieza.status, 200);
+  assert.equal(vistaLimpieza.body.cuentaConservada, adminEmail);
+  assert.equal(typeof vistaLimpieza.body.cantidadUsuarios, "number");
+
   const lista = await request(app).get("/api/admin/usuarios").set(adminAuth);
   assert.equal(lista.status, 200);
   const usuario = lista.body.find(

@@ -4249,6 +4249,13 @@ function PanelAdministracion({ usuario, onViajes, onLogout }) {
   const [gestion, setGestion] = useState(null);
   const [motivo, setMotivo] = useState("");
   const [emailConfirmacion, setEmailConfirmacion] = useState("");
+  const [limpieza, setLimpieza] = useState(null);
+  const [limpiezaVisible, setLimpiezaVisible] = useState(false);
+  const [limpiezaForm, setLimpiezaForm] = useState({
+    emailConfirmacion: "",
+    contrasena: "",
+    confirmacion: "",
+  });
   const [error, setError] = useState("");
   const [cargando, setCargando] = useState(true);
 
@@ -4289,6 +4296,39 @@ function PanelAdministracion({ usuario, onViajes, onLogout }) {
       setGestion(null);
       setMotivo("");
       setEmailConfirmacion("");
+      await cargar();
+    } catch (e) {
+      setError(e.message);
+    }
+  }
+
+  async function abrirLimpieza() {
+    try {
+      setLimpieza(await api("/admin/limpieza"));
+      setLimpiezaForm({
+        emailConfirmacion: "",
+        contrasena: "",
+        confirmacion: "",
+      });
+      setLimpiezaVisible(true);
+      setError("");
+    } catch (e) {
+      setError(e.message);
+    }
+  }
+
+  async function ejecutarLimpieza(event) {
+    event.preventDefault();
+    try {
+      const resultado = await api("/admin/limpieza", {
+        method: "DELETE",
+        body: JSON.stringify(limpiezaForm),
+      });
+      setLimpiezaVisible(false);
+      setError("");
+      alert(
+        `Limpieza completada: ${resultado.usuariosEliminados} usuarios y ${resultado.viajesEliminados} viajes eliminados.`,
+      );
       await cargar();
     } catch (e) {
       setError(e.message);
@@ -4460,6 +4500,23 @@ function PanelAdministracion({ usuario, onViajes, onLogout }) {
             </p>
           )}
         </section>
+        <section className="panel admin-maintenance">
+          <div>
+            <p className="eyebrow">Mantenimiento</p>
+            <h2>Limpiar usuarios de prueba</h2>
+            <p className="empty-copy">
+              Conserva tu cuenta y todos tus viajes. Elimina las demás cuentas,
+              sus viajes propios y el historial administrativo.
+            </p>
+          </div>
+          <button
+            type="button"
+            className="button ghost"
+            onClick={abrirLimpieza}
+          >
+            Ver vista previa
+          </button>
+        </section>
       </main>
       {gestion && (
         <div className="profile-overlay" onMouseDown={() => setGestion(null)}>
@@ -4522,6 +4579,97 @@ function PanelAdministracion({ usuario, onViajes, onLogout }) {
                 {gestion.accion === "ELIMINAR"
                   ? "Eliminar definitivamente"
                   : "Confirmar"}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+      {limpiezaVisible && limpieza && (
+        <div
+          className="profile-overlay"
+          onMouseDown={() => setLimpiezaVisible(false)}
+        >
+          <form
+            className="admin-action-dialog cleanup-dialog"
+            onSubmit={ejecutarLimpieza}
+            onMouseDown={(event) => event.stopPropagation()}
+          >
+            <p className="eyebrow">Vista previa</p>
+            <h2>Limpiar datos de prueba</h2>
+            <div className="cleanup-summary">
+              <div>
+                <strong>{limpieza.cantidadUsuarios}</strong>
+                <span>usuarios</span>
+              </div>
+              <div>
+                <strong>{limpieza.cantidadViajes}</strong>
+                <span>viajes ajenos</span>
+              </div>
+              <div>
+                <strong>{limpieza.cantidadHistorial}</strong>
+                <span>registros del historial</span>
+              </div>
+            </div>
+            <p className="preserved-account">
+              Se conservará <strong>{limpieza.cuentaConservada}</strong> y todos
+              sus viajes.
+            </p>
+            <div className="alert">
+              Esta acción es definitiva. Verificá las cantidades antes de
+              continuar.
+            </div>
+            <label>
+              Tu correo para confirmar
+              <input
+                required
+                type="email"
+                value={limpiezaForm.emailConfirmacion}
+                onChange={(event) =>
+                  setLimpiezaForm((actual) => ({
+                    ...actual,
+                    emailConfirmacion: event.target.value,
+                  }))
+                }
+              />
+            </label>
+            <label>
+              Tu contraseña
+              <input
+                required
+                type="password"
+                value={limpiezaForm.contrasena}
+                onChange={(event) =>
+                  setLimpiezaForm((actual) => ({
+                    ...actual,
+                    contrasena: event.target.value,
+                  }))
+                }
+              />
+            </label>
+            <label>
+              Escribí ELIMINAR USUARIOS
+              <input
+                required
+                value={limpiezaForm.confirmacion}
+                onChange={(event) =>
+                  setLimpiezaForm((actual) => ({
+                    ...actual,
+                    confirmacion: event.target.value,
+                  }))
+                }
+                autoComplete="off"
+              />
+            </label>
+            <div className="profile-actions">
+              <button
+                type="button"
+                className="button ghost"
+                onClick={() => setLimpiezaVisible(false)}
+              >
+                Cancelar
+              </button>
+              <button type="submit" className="button danger-button">
+                Eliminar datos indicados
               </button>
             </div>
           </form>
