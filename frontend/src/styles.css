@@ -1837,3 +1837,368 @@ input[type="number"] {
   appearance: textfield;
   -moz-appearance: textfield;
 }
+
+/* Ajustes de uso táctil y pantallas pequeñas */
+html,
+body {
+  overflow-x: hidden;
+}
+
+button,
+summary,
+select {
+  touch-action: manipulation;
+}
+
+@media (max-width: 650px) {
+  body {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  .topbar {
+    padding-right: max(0.8rem, env(safe-area-inset-right));
+    padding-left: max(0.8rem, env(safe-area-inset-left));
+  }
+
+  .content {
+    width: 100%;
+    padding: 1.25rem 0.75rem 2rem;
+  }
+
+  h1 {
+    font-size: clamp(2rem, 11vw, 2.8rem);
+    overflow-wrap: anywhere;
+  }
+
+  h2 {
+    font-size: 1.45rem;
+  }
+
+  input,
+  select,
+  textarea {
+    min-height: 46px;
+    font-size: 16px;
+  }
+
+  textarea {
+    min-height: 90px;
+  }
+
+  .button,
+  .text-button,
+  .back,
+  .icon-button,
+  .card-actions button {
+    min-height: 44px;
+  }
+
+  .panel {
+    padding: 1rem;
+    margin-bottom: 1rem;
+  }
+
+  .panel-heading,
+  .section-actions,
+  .subheading {
+    gap: 0.8rem;
+  }
+
+  .panel-heading h2 {
+    margin-bottom: 0.5rem;
+  }
+
+  .actions {
+    display: grid;
+    grid-template-columns: 1fr;
+    width: 100%;
+  }
+
+  .actions .button {
+    width: 100%;
+  }
+
+  .actions .danger {
+    order: 3;
+    margin-top: 0.4rem;
+  }
+
+  .trip-hero {
+    padding: 1.25rem;
+  }
+
+  .trip-hero .button {
+    width: 100%;
+  }
+
+  .trip-nav,
+  .inner-nav {
+    margin-right: -0.75rem;
+    margin-left: -0.75rem;
+    padding-right: 0.75rem;
+    padding-left: 0.75rem;
+    overscroll-behavior-x: contain;
+    scroll-snap-type: x proximity;
+    scrollbar-width: none;
+  }
+
+  .trip-nav::-webkit-scrollbar,
+  .inner-nav::-webkit-scrollbar {
+    display: none;
+  }
+
+  .trip-nav button,
+  .inner-nav button {
+    min-height: 44px;
+    scroll-snap-align: start;
+  }
+
+  .heading-actions {
+    display: grid;
+    grid-template-columns: 1fr;
+    width: 100%;
+  }
+
+  .heading-actions .button {
+    width: 100%;
+  }
+
+  .quote-card,
+  .trip-card,
+  .summary-kpi,
+  .balance-card {
+    min-width: 0;
+  }
+
+  .concept-row,
+  .due-row,
+  .expense-row,
+  .payment-row,
+  .transfer-row,
+  .transfer-history-row {
+    row-gap: 0.65rem;
+  }
+
+  .concept-row > div:first-child,
+  .due-row > div:first-child,
+  .expense-row > div:first-child,
+  .payment-row > div:first-child {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+
+  .participant-checks {
+    max-height: 240px;
+    overflow-y: auto;
+  }
+
+  .participant-checks label,
+  .check-row label,
+  .inline-check {
+    min-height: 44px;
+    justify-content: center;
+  }
+
+  .participant-checks input,
+  .check-row input,
+  .inline-check input {
+    min-height: auto;
+  }
+}
+
+@media (max-width: 420px) {
+  .brand > span:last-child {
+    display: none;
+  }
+
+  .topbar .text-button {
+    padding-right: 0.2rem;
+    padding-left: 0.4rem;
+  }
+
+  .trip-grid,
+  .quote-list,
+  .comparison-grid,
+  .person-summary-grid,
+  .individual-kpis,
+  .balance-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .destination-group label,
+  .split-line,
+  .allocation-line {
+    grid-template-columns: minmax(0, 1fr) 92px;
+  }
+}
+
+.install-banner {
+  position: fixed;
+  right: 1rem;
+  bottom: max(1rem, env(safe-area-inset-bottom));
+  z-index: 100;
+  display: grid;
+  grid-template-columns: 48px minmax(180px, 1fr) auto auto;
+  align-items: center;
+  gap: 0.8rem;
+  width: min(560px, calc(100% - 2rem));
+  padding: 0.8rem;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  box-shadow: 0 14px 45px rgba(23, 55, 53, 0.22);
+}
+
+.offline-status {
+  position: fixed;
+  top: max(0.5rem, env(safe-area-inset-top));
+  left: 50%;
+  z-index: 110;
+  width: min(520px, calc(100% - 1.5rem));
+  padding: 0.65rem 1rem;
+  transform: translateX(-50%);
+  background: #fff4df;
+  border: 1px solid #d99a32;
+  color: #76500f;
+  box-shadow: 0 8px 24px rgba(23, 55, 53, 0.14);
+  text-align: center;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.sync-indicator {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem 0.8rem;
+  margin-top: 0.8rem;
+  color: #d9e7e3;
+  font-size: 0.75rem;
+}
+
+.sync-indicator > span {
+  padding: 0.3rem 0.55rem;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  border-radius: 20px;
+  font-weight: 700;
+}
+
+.sync-indicator small {
+  color: #c3d6d0;
+}
+
+.sync-indicator.conflict > span {
+  border-color: #ffc7a8;
+  background: #8b3d2b;
+  color: white;
+}
+
+.sync-indicator > div {
+  display: flex;
+  flex-basis: 100%;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.sync-indicator button {
+  min-height: 34px;
+  border: 1px solid rgba(255, 255, 255, 0.45);
+  background: transparent;
+  color: white;
+  padding: 0.35rem 0.6rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.install-banner img {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+}
+
+.install-banner strong,
+.install-banner small {
+  display: block;
+}
+
+.install-banner small {
+  margin-top: 0.2rem;
+  color: var(--muted);
+}
+
+.install-banner .icon-button {
+  min-width: 44px;
+  min-height: 44px;
+}
+
+.collaborators-block {
+  margin: 1.5rem 0;
+  padding: 1rem;
+  background: #f4f7f3;
+  border: 1px solid var(--line);
+}
+
+.collaborators-block h3 {
+  margin-bottom: 0.3rem;
+}
+
+.collaborator-form {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.7rem;
+  margin: 1rem 0;
+}
+
+.collaborator-list > div {
+  display: grid;
+  grid-template-columns: 34px 1fr auto auto;
+  align-items: center;
+  gap: 0.7rem;
+  padding: 0.65rem 0;
+  border-top: 1px solid var(--line);
+}
+
+.collaborator-list small {
+  display: block;
+  margin-top: 0.15rem;
+  color: var(--muted);
+}
+
+@media (max-width: 560px) {
+  .collaborator-form {
+    grid-template-columns: 1fr;
+  }
+
+  .collaborator-list > div {
+    grid-template-columns: 34px 1fr auto;
+  }
+
+  .collaborator-list .text-button {
+    grid-column: 2 / -1;
+    justify-self: start;
+  }
+}
+
+@media (max-width: 560px) {
+  .install-banner {
+    right: 0.75rem;
+    bottom: max(0.75rem, env(safe-area-inset-bottom));
+    grid-template-columns: 42px 1fr auto;
+    width: calc(100% - 1.5rem);
+  }
+
+  .install-banner img {
+    width: 42px;
+    height: 42px;
+  }
+
+  .install-banner .button {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    width: 100%;
+  }
+
+  .install-banner .icon-button {
+    grid-column: 3;
+    grid-row: 1;
+  }
+}

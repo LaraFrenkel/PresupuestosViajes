@@ -32,6 +32,40 @@ CREATE TABLE IF NOT EXISTS viajes (
   INDEX idx_viajes_usuario_fecha (id_usuario, fecha_salida)
 ) ENGINE=InnoDB;
 
+CREATE TABLE IF NOT EXISTS colaboradores_viaje (
+  id_viaje BIGINT UNSIGNED NOT NULL,
+  id_usuario BIGINT UNSIGNED NOT NULL,
+  rol ENUM('EDITOR') NOT NULL DEFAULT 'EDITOR',
+  creado_en TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id_viaje, id_usuario),
+  CONSTRAINT fk_colaborador_viaje FOREIGN KEY (id_viaje) REFERENCES viajes(id_viaje) ON DELETE CASCADE,
+  CONSTRAINT fk_colaborador_usuario FOREIGN KEY (id_usuario) REFERENCES usuarios(id_usuario) ON DELETE CASCADE,
+  INDEX idx_colaborador_usuario (id_usuario)
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS sincronizacion_viaje (
+  id_viaje BIGINT UNSIGNED PRIMARY KEY,
+  version BIGINT UNSIGNED NOT NULL DEFAULT 0,
+  id_usuario_ultimo BIGINT UNSIGNED,
+  actualizado_en TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  CONSTRAINT fk_sync_viaje FOREIGN KEY (id_viaje) REFERENCES viajes(id_viaje) ON DELETE CASCADE,
+  CONSTRAINT fk_sync_usuario FOREIGN KEY (id_usuario_ultimo) REFERENCES usuarios(id_usuario) ON DELETE SET NULL
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS cambios_sincronizacion (
+  id_cambio BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  id_viaje BIGINT UNSIGNED NOT NULL,
+  version BIGINT UNSIGNED NOT NULL,
+  id_usuario BIGINT UNSIGNED,
+  accion VARCHAR(12) NOT NULL,
+  recurso VARCHAR(255) NOT NULL,
+  creado_en TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT fk_cambio_sync_viaje FOREIGN KEY (id_viaje) REFERENCES viajes(id_viaje) ON DELETE CASCADE,
+  CONSTRAINT fk_cambio_sync_usuario FOREIGN KEY (id_usuario) REFERENCES usuarios(id_usuario) ON DELETE SET NULL,
+  UNIQUE KEY uq_cambio_version (id_viaje, version),
+  INDEX idx_cambio_sync (id_viaje, version)
+) ENGINE=InnoDB;
+
 CREATE TABLE IF NOT EXISTS participantes (
   id_participante BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   id_viaje BIGINT UNSIGNED NOT NULL,

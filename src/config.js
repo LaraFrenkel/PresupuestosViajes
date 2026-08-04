@@ -1,10 +1,10 @@
-import 'dotenv/config';
+import "dotenv/config";
 
-const required = ['DB_HOST', 'DB_USER', 'DB_NAME', 'JWT_SECRET'];
+const required = ["DB_HOST", "DB_USER", "DB_NAME", "JWT_SECRET"];
 const missing = required.filter((key) => !process.env[key]);
 
 if (missing.length) {
-  throw new Error(`Faltan variables de entorno: ${missing.join(', ')}`);
+  throw new Error(`Faltan variables de entorno: ${missing.join(", ")}`);
 }
 
 export const config = {
@@ -13,13 +13,17 @@ export const config = {
     host: process.env.DB_HOST,
     port: Number(process.env.DB_PORT ?? 3306),
     user: process.env.DB_USER,
-    password: process.env.DB_PASSWORD ?? '',
+    password: process.env.DB_PASSWORD ?? "",
     database: process.env.DB_NAME,
+    ssl:
+      process.env.DB_SSL === "true"
+        ? { rejectUnauthorized: process.env.DB_SSL_VERIFY !== "false" }
+        : undefined,
     waitForConnections: true,
     connectionLimit: 10,
-    decimalNumbers: true
+    decimalNumbers: true,
   },
   jwtSecret: process.env.JWT_SECRET,
-  jwtExpiresIn: process.env.JWT_EXPIRES_IN ?? '8h',
-  frontendUrl: process.env.FRONTEND_URL ?? 'http://localhost:5173'
+  jwtExpiresIn: process.env.JWT_EXPIRES_IN ?? "8h",
+  frontendUrl: process.env.FRONTEND_URL ?? "http://localhost:5173",
 };
