@@ -1,6 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { api } from "./api.js";
-import { borrarDatosLocales, listarOperaciones } from "./offline-db.js";
+import {
+  borrarDatosLocales,
+  leerRespuesta,
+  listarOperaciones,
+} from "./offline-db.js";
 import { descartarPendientes, sincronizarViaje } from "./sync.js";
 
 const viajeVacio = {
@@ -23,6 +27,18 @@ const estadoTexto = {
   FINALIZADO: "Finalizado",
   ARCHIVADO: "Archivado",
 };
+
+async function cargarFinanzasYPresupuesto(idViaje) {
+  const presupuesto = api(`/viajes/${idViaje}/presupuesto`).catch((error) => {
+    if (/no hay un presupuesto/i.test(error.message)) return null;
+    throw error;
+  });
+  const [finanzas, presupuestoActual] = await Promise.all([
+    api(`/viajes/${idViaje}/finanzas`),
+    presupuesto,
+  ]);
+  return { finanzas, presupuesto: presupuestoActual };
+}
 
 const tipoViajeTexto = {
   CRUCERO: "Crucero",
@@ -467,12 +483,9 @@ function DetalleParticipante({ viaje, participante, onClose }) {
   useEffect(() => {
     (async () => {
       try {
-        setFinanzas(await api(`/viajes/${viaje.idViaje}/finanzas`));
-        try {
-          setPresupuesto(await api(`/viajes/${viaje.idViaje}/presupuesto`));
-        } catch (e) {
-          if (!/no hay un presupuesto/i.test(e.message)) throw e;
-        }
+        const datos = await cargarFinanzasYPresupuesto(viaje.idViaje);
+        setFinanzas(datos.finanzas);
+        setPresupuesto(datos.presupuesto);
       } catch (e) {
         setError(e.message);
       } finally {
@@ -3313,13 +3326,9 @@ function ResumenViaje({ viaje, onNavigate }) {
   useEffect(() => {
     (async () => {
       try {
-        const f = await api(`/viajes/${viaje.idViaje}/finanzas`);
-        setFinanzas(f);
-        try {
-          setPresupuesto(await api(`/viajes/${viaje.idViaje}/presupuesto`));
-        } catch (e) {
-          if (!/no hay un presupuesto/i.test(e.message)) throw e;
-        }
+        const datos = await cargarFinanzasYPresupuesto(viaje.idViaje);
+        setFinanzas(datos.finanzas);
+        setPresupuesto(datos.presupuesto);
         setError("");
       } catch (e) {
         setError(e.message);
@@ -3953,16 +3962,34 @@ function Dashboard({ usuario, onLogout, onUsuarioUpdate, onAdmin }) {
   const [editando, setEditando] = useState(null);
   const [error, setError] = useState("");
   const [seccion, setSeccion] = useState("resumen");
-  async function cargar() {
+  const [seccionesVisitadas, setSeccionesVisitadas] = useState(
+    () => new Set(["resumen"]),
+  );
+  async function cargar(usarCache = false) {
     try {
-      setViajes(await api("/viajes"));
+      const solicitudRemota = api("/viajes");
+      if (usarCache) {
+        const guardada = await leerRespuesta("/viajes").catch(() => null);
+        if (guardada?.data) setViajes(guardada.data);
+      }
+      setViajes(await solicitudRemota);
+      setError("");
     } catch (e) {
       setError(e.message);
     }
   }
   useEffect(() => {
-    cargar();
+    cargar(true);
   }, []);
+  function navegarA(nuevaSeccion) {
+    setSeccion(nuevaSeccion);
+    setSeccionesVisitadas((actuales) => {
+      if (actuales.has(nuevaSeccion)) return actuales;
+      const siguientes = new Set(actuales);
+      siguientes.add(nuevaSeccion);
+      return siguientes;
+    });
+  }
   const activos = useMemo(
     () => viajes.filter((v) => v.estado !== "ARCHIVADO"),
     [viajes],
@@ -4014,6 +4041,7 @@ function Dashboard({ usuario, onLogout, onUsuarioUpdate, onAdmin }) {
       setFormVisible(false);
       setEditando(null);
       setSeccion("resumen");
+      setSeccionesVisitadas(new Set(["resumen"]));
       await cargar();
     } catch (e) {
       setError(e.message);
@@ -4023,6 +4051,7 @@ function Dashboard({ usuario, onLogout, onUsuarioUpdate, onAdmin }) {
     setFormVisible(false);
     setEditando(null);
     setSeccion("resumen");
+    setSeccionesVisitadas(new Set(["resumen"]));
     setSeleccionado(v);
     window.scrollTo({ top: 0, behavior: "instant" });
   }
@@ -4049,6 +4078,7 @@ function Dashboard({ usuario, onLogout, onUsuarioUpdate, onAdmin }) {
             onClick={() => {
               setSeleccionado(null);
               setSeccion("resumen");
+              setSeccionesVisitadas(new Set(["resumen"]));
             }}
           >
             ← Todos los viajes
@@ -4083,49 +4113,49 @@ function Dashboard({ usuario, onLogout, onUsuarioUpdate, onAdmin }) {
           <nav className="trip-nav" aria-label="Secciones del viaje">
             <button
               className={seccion === "resumen" ? "active" : ""}
-              onClick={() => setSeccion("resumen")}
+              onClick={() => navegarA("resumen")}
             >
               Resumen
             </button>
             <button
               className={seccion === "participantes" ? "active" : ""}
-              onClick={() => setSeccion("participantes")}
+              onClick={() => navegarA("participantes")}
             >
               Participantes
             </button>
             <button
               className={seccion === "traslados" ? "active" : ""}
-              onClick={() => setSeccion("traslados")}
+              onClick={() => navegarA("traslados")}
             >
               Traslados
             </button>
             <button
               className={seccion === "cotizaciones" ? "active" : ""}
-              onClick={() => setSeccion("cotizaciones")}
+              onClick={() => navegarA("cotizaciones")}
             >
               Cotizaciones
             </button>
             <button
               className={seccion === "presupuesto" ? "active" : ""}
-              onClick={() => setSeccion("presupuesto")}
+              onClick={() => navegarA("presupuesto")}
             >
               Presupuesto y planes
             </button>
             <button
               className={seccion === "gastos" ? "active" : ""}
-              onClick={() => setSeccion("gastos")}
+              onClick={() => navegarA("gastos")}
             >
               Gastos
             </button>
             <button
               className={seccion === "balances" ? "active" : ""}
-              onClick={() => setSeccion("balances")}
+              onClick={() => navegarA("balances")}
             >
               Balances
             </button>
             <button
               className={seccion === "monedas" ? "active" : ""}
-              onClick={() => setSeccion("monedas")}
+              onClick={() => navegarA("monedas")}
             >
               Monedas
             </button>
@@ -4148,38 +4178,58 @@ function Dashboard({ usuario, onLogout, onUsuarioUpdate, onAdmin }) {
               }
             />
           )}{" "}
-          {seccion === "resumen" && (
-            <ResumenViaje viaje={seleccionado} onNavigate={setSeccion} />
+          {seccionesVisitadas.has("resumen") && (
+            <div hidden={seccion !== "resumen"}>
+              <ResumenViaje viaje={seleccionado} onNavigate={navegarA} />
+            </div>
           )}
-          {seccion === "participantes" && (
-            <Participantes
-              viaje={seleccionado}
-              onCountChange={() => cargar()}
-            />
-          )}{" "}
-          {seccion === "traslados" && <Traslados viaje={seleccionado} />}{" "}
-          {seccion === "cotizaciones" && <Cotizaciones viaje={seleccionado} />}{" "}
-          {seccion === "presupuesto" && (
-            <Presupuesto
-              viaje={seleccionado}
-              onGoQuotes={() => setSeccion("cotizaciones")}
-            />
+          {seccionesVisitadas.has("participantes") && (
+            <div hidden={seccion !== "participantes"}>
+              <Participantes
+                viaje={seleccionado}
+                onCountChange={() => cargar()}
+              />
+            </div>
           )}
-          {seccion === "gastos" && (
-            <Finanzas viaje={seleccionado} vista="gastos" />
+          {seccionesVisitadas.has("traslados") && (
+            <div hidden={seccion !== "traslados"}>
+              <Traslados viaje={seleccionado} />
+            </div>
           )}
-          {seccion === "balances" && (
-            <Finanzas
-              viaje={seleccionado}
-              vista="balances"
-              onGoCurrencies={() => setSeccion("monedas")}
-            />
+          {seccionesVisitadas.has("cotizaciones") && (
+            <div hidden={seccion !== "cotizaciones"}>
+              <Cotizaciones viaje={seleccionado} />
+            </div>
           )}
-          {seccion === "monedas" && (
-            <Monedas
-              viaje={seleccionado}
-              onBack={() => setSeccion("balances")}
-            />
+          {seccionesVisitadas.has("presupuesto") && (
+            <div hidden={seccion !== "presupuesto"}>
+              <Presupuesto
+                viaje={seleccionado}
+                onGoQuotes={() => navegarA("cotizaciones")}
+              />
+            </div>
+          )}
+          {seccionesVisitadas.has("gastos") && (
+            <div hidden={seccion !== "gastos"}>
+              <Finanzas viaje={seleccionado} vista="gastos" />
+            </div>
+          )}
+          {seccionesVisitadas.has("balances") && (
+            <div hidden={seccion !== "balances"}>
+              <Finanzas
+                viaje={seleccionado}
+                vista="balances"
+                onGoCurrencies={() => navegarA("monedas")}
+              />
+            </div>
+          )}
+          {seccionesVisitadas.has("monedas") && (
+            <div hidden={seccion !== "monedas"}>
+              <Monedas
+                viaje={seleccionado}
+                onBack={() => navegarA("balances")}
+              />
+            </div>
           )}
         </main>
       </div>
