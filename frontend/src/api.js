@@ -13,6 +13,7 @@ const API_URL = import.meta.env.PROD
 
 export async function api(path, options = {}) {
   const token = localStorage.getItem("token");
+  const tieneSesion = Boolean(localStorage.getItem("usuario"));
   const method = (options.method ?? "GET").toUpperCase();
   let response;
   try {
@@ -30,7 +31,7 @@ export async function api(path, options = {}) {
     window.dispatchEvent(
       new CustomEvent("brujula:conexion", { detail: false }),
     );
-    if (method === "GET" && token) {
+    if (method === "GET" && tieneSesion) {
       const guardada = await leerRespuesta(path).catch(() => null);
       if (guardada) return guardada.data;
       throw new Error(
@@ -38,7 +39,7 @@ export async function api(path, options = {}) {
       );
     }
     const coincidencia = path.match(/^\/viajes\/(\d+)/);
-    if (method !== "GET" && token && coincidencia) {
+    if (method !== "GET" && tieneSesion && coincidencia) {
       const idViaje = Number(coincidencia[1]);
       await guardarOperacion({
         idViaje,
@@ -55,7 +56,7 @@ export async function api(path, options = {}) {
   if (response.status === 204) return null;
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
-    if (response.status === 401 && token) {
+    if (response.status === 401 && tieneSesion) {
       await borrarDatosLocales().catch(() => undefined);
       localStorage.removeItem("token");
       localStorage.removeItem("usuario");
@@ -71,7 +72,7 @@ export async function api(path, options = {}) {
     const mensaje = data.error ?? "No se pudo completar la operación.";
     throw new Error(detalles.length ? detalles.join(" ") : mensaje);
   }
-  if (method === "GET" && token)
+  if (method === "GET" && tieneSesion)
     await guardarRespuesta(path, data).catch(() => undefined);
   const idViaje = path.match(/^\/viajes\/(\d+)/)?.[1];
   const version = response.headers.get("X-Sync-Version");
