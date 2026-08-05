@@ -3664,13 +3664,13 @@ const trasladoVacio = {
 };
 
 const transporteTexto = {
-  AVION: "AviÃ³n",
+  AVION: "Avión",
   AUTO: "Auto",
   TREN: "Tren",
   MICRO: "Micro",
   BARCO: "Barco / crucero",
   FERRY: "Ferry",
-  TRANSPORTE_PUBLICO: "Transporte pÃºblico",
+  TRANSPORTE_PUBLICO: "Transporte público",
   OTRO: "Otro",
 };
 
@@ -3729,7 +3729,7 @@ function Traslados({ viaje }) {
   async function eliminar(traslado) {
     if (
       !confirm(
-        `Â¿Eliminar el traslado ${traslado.origen} â†’ ${traslado.destino}?`,
+        `¿Eliminar el traslado ${traslado.origen} → ${traslado.destino}?`,
       )
     )
       return;
@@ -3749,7 +3749,7 @@ function Traslados({ viaje }) {
         <div>
           <p className="eyebrow">Ruta del viaje</p>
           <h2>Traslados</h2>
-          <p>RegistrÃ¡ cada tramo y el medio de transporte utilizado.</p>
+          <p>Registrá cada tramo y el medio de transporte utilizado.</p>
         </div>
         {viaje.rolAcceso !== "LECTOR" && (
           <button className="button primary" onClick={nuevo}>
@@ -3766,14 +3766,14 @@ function Traslados({ viaje }) {
               <div className="transfer-main">
                 <span className="status">{transporteTexto[traslado.tipo]}</span>
                 <h3>
-                  {traslado.origen} <span aria-hidden="true">â†’</span>{" "}
+                  {traslado.origen} <span aria-hidden="true">→</span>{" "}
                   {traslado.destino}
                 </h3>
                 <p>
                   {traslado.fechaSalida
                     ? new Date(traslado.fechaSalida).toLocaleString("es-AR")
                     : "Fecha por definir"}
-                  {traslado.proveedor ? ` Â· ${traslado.proveedor}` : ""}
+                  {traslado.proveedor ? ` · ${traslado.proveedor}` : ""}
                 </p>
                 {traslado.referencia && (
                   <small>Reserva: {traslado.referencia}</small>
@@ -3814,9 +3814,9 @@ function Traslados({ viaje }) {
         </div>
       ) : (
         <div className="empty-state compact">
-          <span>â†’</span>
-          <h3>TodavÃ­a no hay traslados</h3>
-          <p>AgregÃ¡ el primer tramo para armar la ruta completa.</p>
+          <span>→</span>
+          <h3>Todavía no hay traslados</h3>
+          <p>Agregá el primer tramo para armar la ruta completa.</p>
         </div>
       )}
       {visible && (
@@ -3836,7 +3836,7 @@ function Traslados({ viaje }) {
                 className="icon-button"
                 onClick={() => setVisible(false)}
               >
-                Ã—
+                ×
               </button>
             </div>
             <div className="transfer-form-body">
@@ -3890,7 +3890,7 @@ function Traslados({ viaje }) {
                 />
               </label>
               <label>
-                NÃºmero de reserva
+                Número de reserva
                 <input
                   value={form.referencia ?? ""}
                   onChange={cambiar("referencia")}
@@ -4533,7 +4533,7 @@ function PerfilUsuario({ usuario, onClose, onUpdate, onDelete }) {
           <div>
             <h3>Datos de este dispositivo</h3>
             <p>
-              Borra las copias offline de este celular sin eliminar informaciÃ³n
+              Borra las copias offline de este celular sin eliminar información
               de la cuenta.
             </p>
           </div>

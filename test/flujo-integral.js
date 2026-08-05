@@ -125,10 +125,10 @@ try {
     await api.post(`/api/viajes/${idViaje}/traslados`).set(auth).send({
       tipo: "AVION",
       origen: "Buenos Aires",
-      destino: "RÃ­o de Janeiro",
+      destino: "Río de Janeiro",
       fechaSalida: "2027-01-05T08:30",
       fechaLlegada: "2027-01-05T11:20",
-      proveedor: "AerolÃ­nea QA",
+      proveedor: "Aerolínea QA",
       referencia: "QA123",
       moneda: "USD",
       importe: 350,
@@ -142,7 +142,7 @@ try {
     200,
     "listar traslados",
   );
-  assert.equal(traslados[0].destino, "RÃ­o de Janeiro");
+  assert.equal(traslados[0].destino, "Río de Janeiro");
   ok(
     await api
       .put(`/api/viajes/${idViaje}/traslados/${traslado.idTraslado}`)
@@ -150,10 +150,10 @@ try {
       .send({
         tipo: "AVION",
         origen: "Buenos Aires",
-        destino: "RÃ­o de Janeiro",
+        destino: "Río de Janeiro",
         fechaSalida: "2027-01-05T09:00",
         fechaLlegada: "2027-01-05T12:00",
-        proveedor: "AerolÃ­nea QA",
+        proveedor: "Aerolínea QA",
         referencia: "QA123",
         moneda: "USD",
         importe: 350,
@@ -216,7 +216,7 @@ try {
       .set(auth)
       .send({ rol: "EDITOR" }),
     200,
-    "devolver permiso de ediciÃ³n",
+    "devolver permiso de edición",
   );
 
   const p1 = ok(
