@@ -121,6 +121,48 @@ try {
   );
   idViaje = viaje.idViaje;
 
+  const traslado = ok(
+    await api.post(`/api/viajes/${idViaje}/traslados`).set(auth).send({
+      tipo: "AVION",
+      origen: "Buenos Aires",
+      destino: "RÃ­o de Janeiro",
+      fechaSalida: "2027-01-05T08:30",
+      fechaLlegada: "2027-01-05T11:20",
+      proveedor: "AerolÃ­nea QA",
+      referencia: "QA123",
+      moneda: "USD",
+      importe: 350,
+      orden: 1,
+    }),
+    201,
+    "crear traslado",
+  );
+  const traslados = ok(
+    await api.get(`/api/viajes/${idViaje}/traslados`).set(auth),
+    200,
+    "listar traslados",
+  );
+  assert.equal(traslados[0].destino, "RÃ­o de Janeiro");
+  ok(
+    await api
+      .put(`/api/viajes/${idViaje}/traslados/${traslado.idTraslado}`)
+      .set(auth)
+      .send({
+        tipo: "AVION",
+        origen: "Buenos Aires",
+        destino: "RÃ­o de Janeiro",
+        fechaSalida: "2027-01-05T09:00",
+        fechaLlegada: "2027-01-05T12:00",
+        proveedor: "AerolÃ­nea QA",
+        referencia: "QA123",
+        moneda: "USD",
+        importe: 350,
+        orden: 1,
+      }),
+    200,
+    "editar traslado",
+  );
+
   ok(
     await api
       .post(`/api/viajes/${idViaje}/colaboradores`)

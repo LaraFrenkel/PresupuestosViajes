@@ -593,6 +593,69 @@ textarea:focus {
   margin: 0 auto;
   padding: clamp(2rem, 5vw, 4.5rem) clamp(1rem, 4vw, 2rem);
 }
+.transfer-timeline {
+  display: grid;
+  margin-top: 1rem;
+}
+.transfer-card {
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr) auto;
+  gap: 1rem;
+  padding: 1rem 0;
+  border-top: 1px solid var(--line);
+}
+.transfer-marker {
+  display: grid;
+  place-items: center;
+  align-self: start;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--green);
+  color: white;
+  font-weight: 700;
+}
+.transfer-main h3 {
+  margin: 0.45rem 0 0.3rem;
+}
+.transfer-main p,
+.transfer-main small {
+  margin: 0;
+  color: var(--muted);
+}
+.transfer-side {
+  display: grid;
+  align-content: start;
+  justify-items: end;
+  gap: 0.6rem;
+}
+.transfer-form {
+  width: min(720px, 100%);
+}
+.transfer-form-body {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0 1rem;
+  padding: 1.5rem clamp(1.25rem, 4vw, 2rem);
+}
+.transfer-form-body .wide-field {
+  grid-column: 1 / -1;
+}
+@media (max-width: 650px) {
+  .transfer-card {
+    grid-template-columns: 32px minmax(0, 1fr);
+  }
+  .transfer-side {
+    grid-column: 2;
+    justify-items: start;
+  }
+  .transfer-form-body {
+    grid-template-columns: 1fr;
+  }
+  .transfer-form-body .wide-field {
+    grid-column: auto;
+  }
+}
 .welcome {
   display: flex;
   justify-content: space-between;
