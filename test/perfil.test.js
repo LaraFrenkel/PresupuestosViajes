@@ -12,7 +12,7 @@ const { pool } = await import("../src/db.js");
 
 after(async () => pool.end());
 
-test("el perfil se puede consultar, editar y eliminar con contraseÃ±a", async () => {
+test("el perfil se puede consultar, editar y eliminar con contraseña", async () => {
   const marca = Date.now();
   const email = `perfil-${marca}@example.com`;
   const nuevaEmail = `perfil-editado-${marca}@example.com`;
