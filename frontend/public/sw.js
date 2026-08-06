@@ -1,4 +1,4 @@
-const CACHE = "brujula-shell-v1";
+const CACHE = "brujula-shell-v2";
 const SHELL = [
   "/",
   "/index.html",
