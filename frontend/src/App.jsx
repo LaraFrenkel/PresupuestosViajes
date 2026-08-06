@@ -1437,6 +1437,36 @@ function Cotizaciones({ viaje }) {
     );
     await abrir(seleccionada.idCotizacion);
   }
+  function mostrarFormularioConcepto(concepto = null) {
+    setEditandoConcepto(concepto);
+    setConceptForm(true);
+    requestAnimationFrame(() =>
+      document
+        .getElementById("formulario-concepto-cotizacion")
+        ?.scrollIntoView({ behavior: "smooth", block: "start" }),
+    );
+  }
+  async function eliminarCotizacion() {
+    if (
+      !confirm(
+        `¿Eliminar la cotización de "${seleccionada.agencia}"? Se eliminarán también sus conceptos. Esta acción no se puede deshacer.`,
+      )
+    )
+      return;
+    try {
+      await api(
+        `/viajes/${viaje.idViaje}/cotizaciones/${seleccionada.idCotizacion}`,
+        { method: "DELETE" },
+      );
+      setSeleccionada(null);
+      setConceptForm(false);
+      setEditandoConcepto(null);
+      setVista("lista");
+      await cargar();
+    } catch (e) {
+      setError(e.message);
+    }
+  }
   if (vista === "comparar")
     return (
       <section className="panel quotes-panel">
@@ -1481,7 +1511,8 @@ function Cotizaciones({ viaje }) {
               {seleccionada.moneda}
             </p>
           </div>
-          <div className="heading-actions">
+          {viaje.rolAcceso !== "LECTOR" && (
+            <div className="heading-actions">
             <button
               className="button ghost"
               onClick={() => {
@@ -1493,15 +1524,20 @@ function Cotizaciones({ viaje }) {
             </button>
             <button
               className="button secondary"
-              onClick={() => {
-                setEditandoConcepto(null);
-                setConceptForm(true);
-              }}
+              onClick={() => mostrarFormularioConcepto()}
             >
               ＋ Concepto
             </button>
-          </div>
+            <button
+              className="button danger"
+              onClick={eliminarCotizacion}
+            >
+              Eliminar cotización
+            </button>
+            </div>
+          )}
         </div>
+        {error && <div className="alert">{error}</div>}
         <div className="quote-price-summary">
           <small>Precio cotizado</small>
           <strong>
@@ -1518,17 +1554,19 @@ function Cotizaciones({ viaje }) {
           )}
         </div>
         {conceptForm && (
-          <ConceptoForm
-            key={editandoConcepto?.idConcepto ?? "nuevo"}
-            cotizacion={seleccionada}
-            participantes={participantes}
-            inicial={editandoConcepto}
-            onSave={agregarConcepto}
-            onCancel={() => {
-              setConceptForm(false);
-              setEditandoConcepto(null);
-            }}
-          />
+          <div id="formulario-concepto-cotizacion">
+            <ConceptoForm
+              key={editandoConcepto?.idConcepto ?? "nuevo"}
+              cotizacion={seleccionada}
+              participantes={participantes}
+              inicial={editandoConcepto}
+              onSave={agregarConcepto}
+              onCancel={() => {
+                setConceptForm(false);
+                setEditandoConcepto(null);
+              }}
+            />
+          </div>
         )}
         <div className="concept-list">
           {seleccionada.conceptos.length === 0 ? (
@@ -1554,21 +1592,22 @@ function Cotizaciones({ viaje }) {
                     currency: c.moneda,
                   }).format(c.importe)}
                 </span>
-                <button
-                  className="text-button"
-                  onClick={() => {
-                    setEditandoConcepto(c);
-                    setConceptForm(true);
-                  }}
-                >
-                  Editar
-                </button>
-                <button
-                  className="text-button danger"
-                  onClick={() => eliminarConcepto(c.idConcepto)}
-                >
-                  Eliminar
-                </button>
+                {viaje.rolAcceso !== "LECTOR" && (
+                  <>
+                    <button
+                      className="text-button"
+                      onClick={() => mostrarFormularioConcepto(c)}
+                    >
+                      Editar
+                    </button>
+                    <button
+                      className="text-button danger"
+                      onClick={() => eliminarConcepto(c.idConcepto)}
+                    >
+                      Eliminar
+                    </button>
+                  </>
+                )}
               </div>
             ))
           )}
@@ -1590,15 +1629,17 @@ function Cotizaciones({ viaje }) {
           >
             Comparar
           </button>
-          <button
-            className="button secondary"
-            onClick={() => {
-              setEditandoCotizacion(null);
-              setVista("form");
-            }}
-          >
-            ＋ Nueva
-          </button>
+          {viaje.rolAcceso !== "LECTOR" && (
+            <button
+              className="button secondary"
+              onClick={() => {
+                setEditandoCotizacion(null);
+                setVista("form");
+              }}
+            >
+              ＋ Nueva
+            </button>
+          )}
         </div>
       </div>
       {error && <div className="alert">{error}</div>}
