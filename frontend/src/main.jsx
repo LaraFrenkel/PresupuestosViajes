@@ -10,9 +10,19 @@ ReactDOM.createRoot(document.getElementById("root")).render(
 );
 
 if ("serviceWorker" in navigator) {
+  let recargandoPorActualizacion = false;
+  navigator.serviceWorker.addEventListener("controllerchange", () => {
+    if (recargandoPorActualizacion) return;
+    recargandoPorActualizacion = true;
+    window.location.reload();
+  });
+
   window.addEventListener("load", () => {
-    navigator.serviceWorker.register("/sw.js").catch((error) => {
-      console.warn("No se pudo registrar el modo instalable.", error);
-    });
+    navigator.serviceWorker
+      .register("/sw.js", { updateViaCache: "none" })
+      .then((registro) => registro.update())
+      .catch((error) => {
+        console.warn("No se pudo registrar el modo instalable.", error);
+      });
   });
 }
