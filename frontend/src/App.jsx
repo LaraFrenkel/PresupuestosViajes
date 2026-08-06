@@ -64,6 +64,8 @@ const cotizacionVacia = {
   tipoCamarote: "",
   distribucion: "",
   moneda: "USD",
+  precioCotizado: "",
+  modalidadPrecio: "TOTAL",
   referencia: "",
   vigenteHasta: "",
   estado: "BORRADOR",
@@ -857,6 +859,8 @@ function CotizacionForm({ viaje, inicial, onSave, onCancel }) {
     try {
       await onSave({
         ...form,
+        precioCotizado:
+          form.precioCotizado === "" ? null : Number(form.precioCotizado),
         duracionNoches: form.duracionNoches
           ? Number(form.duracionNoches)
           : null,
@@ -933,6 +937,27 @@ function CotizacionForm({ viaje, inicial, onSave, onCancel }) {
             <option>ARS</option>
             <option>BRL</option>
             <option>EUR</option>
+          </select>
+        </label>
+        <label>
+          Precio cotizado
+          <input
+            type="number"
+            min="0"
+            step="0.01"
+            placeholder="Precio informado por la agencia"
+            value={form.precioCotizado ?? ""}
+            onChange={update("precioCotizado")}
+          />
+        </label>
+        <label>
+          El precio corresponde a
+          <select
+            value={form.modalidadPrecio}
+            onChange={update("modalidadPrecio")}
+          >
+            <option value="TOTAL">Total del grupo</option>
+            <option value="POR_PERSONA">Por persona</option>
           </select>
         </label>
         <label>
@@ -1107,8 +1132,9 @@ function ConceptoForm({
             type="checkbox"
             checked={form.incluido}
             onChange={update("incluido")}
+            disabled={cotizacion.precioCotizado == null && !form.incluido}
           />{" "}
-          Ya incluido en el precio
+          Incluido en el precio cotizado
         </label>
         <label>
           <input
@@ -1119,6 +1145,11 @@ function ConceptoForm({
           Incluir en comparación
         </label>
       </div>
+      <p className="form-help">
+        {cotizacion.precioCotizado == null
+          ? "Cargá primero el precio de la cotización para marcar conceptos incluidos."
+          : "Si está incluido, se muestra como detalle informativo y no se suma otra vez al total."}
+      </p>
       <label className="inline-check">
         <input
           type="checkbox"
@@ -1335,6 +1366,12 @@ function Cotizaciones({ viaje }) {
   const [editandoCotizacion, setEditandoCotizacion] = useState(null);
   const [editandoConcepto, setEditandoConcepto] = useState(null);
   const [error, setError] = useState("");
+  const dinero = (importe, moneda) =>
+    new Intl.NumberFormat("es-AR", {
+      style: "currency",
+      currency: moneda,
+      maximumFractionDigits: 2,
+    }).format(Number(importe) || 0);
   async function cargar() {
     try {
       const [c, p] = await Promise.all([
@@ -1465,6 +1502,21 @@ function Cotizaciones({ viaje }) {
             </button>
           </div>
         </div>
+        <div className="quote-price-summary">
+          <small>Precio cotizado</small>
+          <strong>
+            {seleccionada.precioCotizado == null
+              ? "No informado"
+              : dinero(seleccionada.precioCotizado, seleccionada.moneda)}
+          </strong>
+          {seleccionada.precioCotizado != null && (
+            <span>
+              {seleccionada.modalidadPrecio === "POR_PERSONA"
+                ? "por persona"
+                : "total del grupo"}
+            </span>
+          )}
+        </div>
         {conceptForm && (
           <ConceptoForm
             key={editandoConcepto?.idConcepto ?? "nuevo"}
@@ -1493,6 +1545,7 @@ function Cotizaciones({ viaje }) {
                     {c.aplicaTodos
                       ? "Todas"
                       : `${c.participanteIds.length} participantes`}
+                    {c.incluido ? " · Incluido en el precio cotizado" : ""}
                   </small>
                 </div>
                 <span>
@@ -1565,7 +1618,14 @@ function Cotizaciones({ viaje }) {
                   {c.tipoCamarote || "Camarote por definir"}
                 </p>
                 <small>
-                  {c.cantidadConceptos} conceptos · {c.moneda}
+                  {c.precioCotizado == null
+                    ? "Precio no informado"
+                    : `${dinero(c.precioCotizado, c.moneda)} · ${
+                        c.modalidadPrecio === "POR_PERSONA"
+                          ? "por persona"
+                          : "total del grupo"
+                      }`}
+                  {` · ${c.cantidadConceptos} conceptos`}
                 </small>
               </button>
               <button

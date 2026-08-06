@@ -1044,6 +1044,31 @@ textarea:focus {
 .quotes-panel {
   grid-column: 1/-1;
 }
+
+.quote-price-summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.4rem 0.8rem;
+  margin: 0 0 1rem;
+  padding: 0.9rem 1rem;
+  border-radius: 14px;
+  background: var(--cream);
+}
+
+.quote-price-summary small {
+  flex-basis: 100%;
+}
+
+.quote-price-summary strong {
+  font-size: 1.25rem;
+}
+
+.form-help {
+  margin: -0.25rem 0 1rem;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
 .heading-actions {
   display: flex;
   gap: 0.6rem;

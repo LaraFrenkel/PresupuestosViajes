@@ -149,6 +149,8 @@ CREATE TABLE IF NOT EXISTS cotizaciones (
   tipo_camarote VARCHAR(100),
   distribucion VARCHAR(255),
   moneda CHAR(3) NOT NULL,
+  precio_cotizado DECIMAL(15,2),
+  modalidad_precio ENUM('TOTAL','POR_PERSONA') NOT NULL DEFAULT 'TOTAL',
   referencia VARCHAR(500),
   vigente_hasta DATE,
   estado ENUM('BORRADOR','COMPLETA','SELECCIONADA') NOT NULL DEFAULT 'BORRADOR',

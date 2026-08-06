@@ -225,7 +225,8 @@ router.post(
     try {
       await connection.beginTransaction();
       const [quotes] = await connection.execute(
-        "SELECT id_cotizacion,agencia FROM cotizaciones WHERE id_cotizacion=? AND id_viaje=? FOR UPDATE",
+        `SELECT id_cotizacion,agencia,precio_cotizado,modalidad_precio,moneda
+         FROM cotizaciones WHERE id_cotizacion=? AND id_viaje=? FOR UPDATE`,
         [req.body.idCotizacion, req.params.idViaje],
       );
       if (!quotes[0]) throw new AppError(404, "Cotización no encontrada.");
@@ -250,6 +251,22 @@ router.post(
         "SELECT * FROM conceptos_cotizacion WHERE id_cotizacion=? AND (obligatorio=TRUE OR opcional_seleccionado=TRUE)",
         [req.body.idCotizacion],
       );
+      if (quotes[0].precio_cotizado !== null) {
+        await connection.execute(
+          `INSERT INTO conceptos_presupuesto
+           (id_presupuesto,categoria,descripcion,importe,moneda,modalidad,cantidad,
+            estado,incluido,aplica_todos)
+           VALUES (?,'Precio cotizado','Precio base de la cotización',?,?,?,?,
+            'CONFIRMADO',FALSE,TRUE)`,
+          [
+            result.insertId,
+            quotes[0].precio_cotizado,
+            quotes[0].moneda,
+            quotes[0].modalidad_precio,
+            1,
+          ],
+        );
+      }
       for (const c of conceptos) {
         const [nuevo] = await connection.execute(
           `INSERT INTO conceptos_presupuesto (id_presupuesto,id_concepto_origen,categoria,descripcion,importe,moneda,modalidad,cantidad,estado,incluido,aplica_todos) VALUES (?,?,?,?,?,?,?,?,?,?,?)`,
