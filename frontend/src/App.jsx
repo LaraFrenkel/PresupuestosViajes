@@ -3689,6 +3689,7 @@ function Traslados({ viaje }) {
   const [editando, setEditando] = useState(null);
   const [visible, setVisible] = useState(false);
   const [error, setError] = useState("");
+  const [guardando, setGuardando] = useState(false);
 
   async function cargar() {
     try {
@@ -3709,13 +3710,17 @@ function Traslados({ viaje }) {
   function nuevo() {
     setEditando(null);
     setForm({ ...trasladoVacio, moneda: viaje.monedaPrincipal });
+    setError("");
     setVisible(true);
   }
 
   async function guardar(event) {
     event.preventDefault();
+    if (guardando) return;
+    setGuardando(true);
+    setError("");
     try {
-      await api(
+      const resultado = await api(
         `/viajes/${viaje.idViaje}/traslados${editando ? `/${editando}` : ""}`,
         {
           method: editando ? "PUT" : "POST",
@@ -3728,10 +3733,30 @@ function Traslados({ viaje }) {
           }),
         },
       );
+      const trasladoGuardado = {
+        ...form,
+        idTraslado:
+          editando || resultado?.idTraslado || `pendiente-${Date.now()}`,
+        pendienteSincronizar: Boolean(resultado?.pendienteSincronizar),
+        importe: form.importe === "" ? null : Number(form.importe),
+        orden: Number(form.orden || 0),
+        fechaSalida: form.fechaSalida || null,
+        fechaLlegada: form.fechaLlegada || null,
+      };
+      setTraslados((actuales) =>
+        editando
+          ? actuales.map((item) =>
+              item.idTraslado === editando ? trasladoGuardado : item,
+            )
+          : [...actuales, trasladoGuardado],
+      );
       setVisible(false);
-      await cargar();
+      setEditando(null);
+      if (!resultado?.pendienteSincronizar) void cargar();
     } catch (e) {
       setError(e.message);
+    } finally {
+      setGuardando(false);
     }
   }
 
@@ -3787,17 +3812,22 @@ function Traslados({ viaje }) {
                 {traslado.referencia && (
                   <small>Reserva: {traslado.referencia}</small>
                 )}
+                {traslado.pendienteSincronizar && (
+                  <small>Pendiente de sincronizar</small>
+                )}
               </div>
               <div className="transfer-side">
                 {traslado.importe !== null &&
                   traslado.importe !== undefined && (
                     <strong>{money(traslado.importe, traslado.moneda)}</strong>
                   )}
-                {viaje.rolAcceso !== "LECTOR" && (
+                {viaje.rolAcceso !== "LECTOR" &&
+                  !traslado.pendienteSincronizar && (
                   <div className="row-actions">
                     <button
                       className="text-button"
                       onClick={() => {
+                        setError("");
                         setEditando(traslado.idTraslado);
                         setForm({
                           ...trasladoVacio,
@@ -3848,6 +3878,7 @@ function Traslados({ viaje }) {
                 ×
               </button>
             </div>
+            {error && <div className="alert">{error}</div>}
             <div className="transfer-form-body">
               <label>
                 Transporte
@@ -3863,6 +3894,7 @@ function Traslados({ viaje }) {
                 Origen
                 <input
                   required
+                  minLength="2"
                   value={form.origen}
                   onChange={cambiar("origen")}
                 />
@@ -3871,6 +3903,7 @@ function Traslados({ viaje }) {
                 Destino
                 <input
                   required
+                  minLength="2"
                   value={form.destino}
                   onChange={cambiar("destino")}
                 />
@@ -3943,8 +3976,12 @@ function Traslados({ viaje }) {
                 >
                   Cancelar
                 </button>
-                <button type="submit" className="button primary">
-                  Guardar traslado
+                <button
+                  type="submit"
+                  className="button primary"
+                  disabled={guardando}
+                >
+                  {guardando ? "Guardando…" : "Guardar traslado"}
                 </button>
               </div>
             </div>

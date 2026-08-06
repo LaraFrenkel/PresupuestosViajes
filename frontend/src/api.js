@@ -11,6 +11,10 @@ const API_URL = import.meta.env.PROD
   ? "/api"
   : (import.meta.env.VITE_API_URL ?? "http://localhost:3000/api");
 
+function persistirEnSegundoPlano(promesa) {
+  void promesa.catch(() => undefined);
+}
+
 export async function api(path, options = {}) {
   const token = localStorage.getItem("token");
   const tieneSesion = Boolean(localStorage.getItem("usuario"));
@@ -73,14 +77,14 @@ export async function api(path, options = {}) {
     throw new Error(detalles.length ? detalles.join(" ") : mensaje);
   }
   if (method === "GET" && tieneSesion)
-    await guardarRespuesta(path, data).catch(() => undefined);
+    persistirEnSegundoPlano(guardarRespuesta(path, data));
   const idViaje = path.match(/^\/viajes\/(\d+)/)?.[1];
   const version = response.headers.get("X-Sync-Version");
   if (idViaje && version)
-    await guardarVersion(Number(idViaje), Number(version)).catch(
-      () => undefined,
+    persistirEnSegundoPlano(
+      guardarVersion(Number(idViaje), Number(version)),
     );
   if (idViaje && path.includes("/sincronizacion") && data.version !== undefined)
-    await guardarVersion(Number(idViaje), data.version).catch(() => undefined);
+    persistirEnSegundoPlano(guardarVersion(Number(idViaje), data.version));
   return data;
 }
