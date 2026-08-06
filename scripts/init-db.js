@@ -78,6 +78,25 @@ try {
       );
     }
   }
+  const columnasCotizaciones = [
+    ["precio_cotizado", "DECIMAL(15,2) NULL AFTER moneda"],
+    [
+      "modalidad_precio",
+      "ENUM('TOTAL','POR_PERSONA') NOT NULL DEFAULT 'TOTAL' AFTER precio_cotizado",
+    ],
+  ];
+  for (const [columna, definicion] of columnasCotizaciones) {
+    const [existente] = await connection.execute(
+      `SELECT 1 FROM information_schema.COLUMNS
+       WHERE TABLE_SCHEMA=? AND TABLE_NAME='cotizaciones' AND COLUMN_NAME=?`,
+      [baseActual, columna],
+    );
+    if (!existente.length) {
+      await connection.query(
+        `ALTER TABLE cotizaciones ADD COLUMN ${columna} ${definicion}`,
+      );
+    }
+  }
   const administradores = (process.env.ADMIN_EMAILS ?? "")
     .split(",")
     .map((email) => email.trim().toLowerCase())

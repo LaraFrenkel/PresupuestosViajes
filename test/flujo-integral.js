@@ -242,6 +242,8 @@ try {
       fechaCotizacion: "2026-08-03",
       duracionNoches: 9,
       moneda: "USD",
+      precioCotizado: 300,
+      modalidadPrecio: "TOTAL",
       estado: "COMPLETA",
     }),
     201,
@@ -263,13 +265,23 @@ try {
         cantidad: 1,
         obligatorio: true,
         opcionalSeleccionado: true,
-        incluido: false,
+        incluido: true,
         aplicaTodos: true,
         participanteIds: [],
       }),
     201,
     "crear concepto",
   );
+
+  const comparacion = ok(
+    await api
+      .get(`/api/viajes/${idViaje}/cotizaciones/comparacion`)
+      .set(auth),
+    200,
+    "comparar cotización",
+  );
+  assert.equal(Number(comparacion.cotizaciones[0].totalPrincipal), 300);
+  assert.equal(Number(comparacion.cotizaciones[0].conceptos[0].total), 0);
 
   ok(
     await api

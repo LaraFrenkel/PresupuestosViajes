@@ -23,6 +23,8 @@ const cotizacionSchema = z.object({
   tipoCamarote: z.string().trim().max(100).nullable().optional(),
   distribucion: z.string().trim().max(255).nullable().optional(),
   moneda: z.string().regex(/^[A-Z]{3}$/),
+  precioCotizado: z.coerce.number().nonnegative().nullable().optional(),
+  modalidadPrecio: z.enum(["TOTAL", "POR_PERSONA"]).default("TOTAL"),
   referencia: z.string().trim().max(500).nullable().optional(),
   vigenteHasta: z.string().regex(fecha).nullable().optional(),
   estado: z.enum(["BORRADOR", "COMPLETA"]).default("BORRADOR"),
@@ -69,7 +71,9 @@ async function obtenerCotizacion(idCotizacion, idViaje) {
     `SELECT id_cotizacion AS idCotizacion, agencia, naviera, barco,
       DATE_FORMAT(fecha_cotizacion, '%Y-%m-%d') AS fechaCotizacion,
       duracion_noches AS duracionNoches, itinerario, tipo_camarote AS tipoCamarote,
-      distribucion, moneda, referencia, DATE_FORMAT(vigente_hasta, '%Y-%m-%d') AS vigenteHasta,
+      distribucion, moneda, precio_cotizado AS precioCotizado,
+      modalidad_precio AS modalidadPrecio, referencia,
+      DATE_FORMAT(vigente_hasta, '%Y-%m-%d') AS vigenteHasta,
       estado, creado_en AS creadoEn
      FROM cotizaciones WHERE id_cotizacion = ? AND id_viaje = ?`,
     [idCotizacion, idViaje],
@@ -124,6 +128,7 @@ router.get(
       `SELECT c.id_cotizacion AS idCotizacion, c.agencia, c.naviera, c.barco,
       DATE_FORMAT(c.fecha_cotizacion, '%Y-%m-%d') AS fechaCotizacion,
       c.duracion_noches AS duracionNoches, c.tipo_camarote AS tipoCamarote, c.moneda,
+      c.precio_cotizado AS precioCotizado, c.modalidad_precio AS modalidadPrecio,
       DATE_FORMAT(c.vigente_hasta, '%Y-%m-%d') AS vigenteHasta, c.estado,
       COUNT(cc.id_concepto) AS cantidadConceptos
      FROM cotizaciones c LEFT JOIN conceptos_cotizacion cc ON cc.id_cotizacion = c.id_cotizacion
@@ -142,8 +147,9 @@ router.post(
     const d = req.body;
     const [result] = await pool.execute(
       `INSERT INTO cotizaciones (id_viaje, agencia, naviera, barco, fecha_cotizacion, duracion_noches,
-      itinerario, tipo_camarote, distribucion, moneda, referencia, vigente_hasta, estado)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      itinerario, tipo_camarote, distribucion, moneda, precio_cotizado,
+      modalidad_precio, referencia, vigente_hasta, estado)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         req.params.idViaje,
         d.agencia,
@@ -155,6 +161,8 @@ router.post(
         d.tipoCamarote ?? null,
         d.distribucion ?? null,
         d.moneda,
+        d.precioCotizado ?? null,
+        d.modalidadPrecio,
         d.referencia ?? null,
         d.vigenteHasta ?? null,
         d.estado,
@@ -200,6 +208,28 @@ router.get(
       const porParticipante = Object.fromEntries(
         participantes.map((p) => [p.idParticipante, 0]),
       );
+      const precioCotizado = Number(cotizacion.precioCotizado ?? 0);
+      const totalPrecioCotizado =
+        cotizacion.modalidadPrecio === "POR_PERSONA"
+          ? precioCotizado * participantes.length
+          : precioCotizado;
+      if (totalPrecioCotizado) {
+        totalesPorMoneda[cotizacion.moneda] = totalPrecioCotizado;
+        const tasaBase =
+          cotizacion.moneda === viaje.monedaPrincipal
+            ? 1
+            : tasas[cotizacion.moneda];
+        if (!tasaBase) incompleta = true;
+        else {
+          totalPrincipal += totalPrecioCotizado * tasaBase;
+          const parte = participantes.length
+            ? (totalPrecioCotizado * tasaBase) / participantes.length
+            : 0;
+          participantes.forEach((participante) => {
+            porParticipante[participante.idParticipante] += parte;
+          });
+        }
+      }
       const detalle = conceptos.map((c) => {
         const total = calcularConcepto(c, participantes.length, noches);
         totalesPorMoneda[c.moneda] = (totalesPorMoneda[c.moneda] ?? 0) + total;
@@ -301,7 +331,8 @@ router.put(
     const d = req.body;
     await pool.execute(
       `UPDATE cotizaciones SET agencia=?, naviera=?, barco=?, fecha_cotizacion=?, duracion_noches=?, itinerario=?,
-      tipo_camarote=?, distribucion=?, moneda=?, referencia=?, vigente_hasta=?, estado=? WHERE id_cotizacion=? AND id_viaje=?`,
+      tipo_camarote=?, distribucion=?, moneda=?, precio_cotizado=?,
+      modalidad_precio=?, referencia=?, vigente_hasta=?, estado=? WHERE id_cotizacion=? AND id_viaje=?`,
       [
         d.agencia,
         d.naviera ?? null,
@@ -312,6 +343,8 @@ router.put(
         d.tipoCamarote ?? null,
         d.distribucion ?? null,
         d.moneda,
+        d.precioCotizado ?? null,
+        d.modalidadPrecio,
         d.referencia ?? null,
         d.vigenteHasta ?? null,
         d.estado,
@@ -338,9 +371,11 @@ router.post(
       await connection.beginTransaction();
       const [result] = await connection.execute(
         `INSERT INTO cotizaciones (id_viaje, agencia, naviera, barco, fecha_cotizacion, duracion_noches, itinerario,
-       tipo_camarote, distribucion, moneda, referencia, vigente_hasta, estado)
+       tipo_camarote, distribucion, moneda, precio_cotizado, modalidad_precio,
+       referencia, vigente_hasta, estado)
        SELECT id_viaje, CONCAT(agencia, ' — copia'), naviera, barco, fecha_cotizacion, duracion_noches, itinerario,
-       tipo_camarote, distribucion, moneda, referencia, vigente_hasta, 'BORRADOR'
+       tipo_camarote, distribucion, moneda, precio_cotizado, modalidad_precio,
+       referencia, vigente_hasta, 'BORRADOR'
        FROM cotizaciones WHERE id_cotizacion = ?`,
         [original.idCotizacion],
       );
@@ -401,8 +436,16 @@ router.delete(
 
 async function guardarConcepto(req, res, idConcepto = null) {
   await comprobarAcceso(req);
-  await obtenerCotizacion(req.params.idCotizacion, req.params.idViaje);
+  const cotizacion = await obtenerCotizacion(
+    req.params.idCotizacion,
+    req.params.idViaje,
+  );
   const d = req.body;
+  if (d.incluido && cotizacion.precioCotizado === null)
+    throw new AppError(
+      400,
+      "Cargá el precio cotizado antes de marcar conceptos como incluidos.",
+    );
   const connection = await pool.getConnection();
   try {
     await connection.beginTransaction();
