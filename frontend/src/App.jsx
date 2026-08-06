@@ -3704,6 +3704,22 @@ function Traslados({ viaje }) {
     cargar();
   }, [viaje.idViaje]);
 
+  const money = (importe, moneda) => {
+    const codigo = moneda || viaje.monedaPrincipal || "USD";
+    try {
+      return new Intl.NumberFormat("es-AR", {
+        style: "currency",
+        currency: codigo,
+        maximumFractionDigits: 2,
+      }).format(Number(importe) || 0);
+    } catch {
+      return `${codigo} ${(Number(importe) || 0).toLocaleString("es-AR", {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      })}`;
+    }
+  };
+
   const cambiar = (campo) => (event) =>
     setForm((actual) => ({ ...actual, [campo]: event.target.value }));
 
