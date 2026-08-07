@@ -29,7 +29,7 @@ test("una ruta inexistente devuelve 404", async () => {
 test("una validación informa el campo y el problema en español", async () => {
   const response = await request(app)
     .post("/api/auth/login")
-    .send({ email: "correo-invalido", contrasena: "123" });
+    .send({ email: "correo-invalido", contrasena: "" });
   assert.equal(response.status, 400);
   assert.equal(response.body.error, "Hay datos que necesitan corrección.");
   assert.ok(

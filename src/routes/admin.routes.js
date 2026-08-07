@@ -328,7 +328,7 @@ router.delete(
         .email()
         .max(150)
         .transform((email) => email.toLowerCase()),
-      contrasena: z.string().min(8).max(72),
+      contrasena: z.string().min(1).max(72),
       confirmacion: z.literal("ELIMINAR USUARIOS"),
     }),
   ),

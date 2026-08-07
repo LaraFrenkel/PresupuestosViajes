@@ -21,7 +21,7 @@ const credenciales = z.object({
     .email()
     .max(150)
     .transform((value) => value.trim().toLowerCase()),
-  contrasena: z.string().min(8).max(72),
+  contrasena: z.string().min(1).max(72),
 });
 
 router.post(
@@ -188,7 +188,7 @@ router.delete(
   requerirAutenticacion,
   validar(
     z.object({
-      contrasena: z.string().min(8).max(72),
+      contrasena: z.string().min(1).max(72),
     }),
   ),
   asyncHandler(async (req, res) => {
