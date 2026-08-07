@@ -173,11 +173,20 @@ function Auth({ onLogin }) {
             <input
               required
               type="password"
-              minLength="8"
+              minLength={registro ? 10 : 1}
+              maxLength="72"
+              autoComplete={registro ? "new-password" : "current-password"}
               value={form.contrasena}
               onChange={(e) => setForm({ ...form, contrasena: e.target.value })}
-              placeholder="Al menos 8 caracteres"
+              placeholder={
+                registro ? "Al menos 10 caracteres" : "Tu contraseña"
+              }
             />
+            {registro && (
+              <small>
+                Mínimo 10 caracteres, con mayúscula, minúscula y número.
+              </small>
+            )}
           </label>
           {error && <div className="alert">{error}</div>}
           <button className="button primary wide" disabled={cargando}>
@@ -4710,12 +4719,15 @@ function PerfilUsuario({ usuario, onClose, onUpdate, onDelete }) {
                 Contraseña nueva
                 <input
                   type="password"
-                  minLength="8"
+                  minLength="10"
+                  maxLength="72"
                   autoComplete="new-password"
                   value={form.contrasenaNueva}
                   onChange={cambiar("contrasenaNueva")}
                 />
-                <small>Mínimo 8 caracteres</small>
+                <small>
+                  Mínimo 10 caracteres, con mayúscula, minúscula y número.
+                </small>
               </label>
             </div>
           )}
