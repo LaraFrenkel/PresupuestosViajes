@@ -1,4 +1,4 @@
-const CACHE = "brujula-shell-v2";
+const CACHE = "brujula-shell-v3";
 const SHELL = [
   "/",
   "/index.html",
@@ -6,8 +6,29 @@ const SHELL = [
   "/icons/brujula.svg",
 ];
 
+async function cachearAplicacionCompleta() {
+  const cache = await caches.open(CACHE);
+  const index = await fetch("/index.html", { cache: "no-store" });
+  if (!index.ok) throw new Error("No se pudo preparar la aplicación offline.");
+
+  const html = await index.clone().text();
+  const recursos = [...html.matchAll(/(?:src|href)=["']([^"']+)["']/g)]
+    .map((coincidencia) => new URL(coincidencia[1], self.location.origin))
+    .filter(
+      (url) =>
+        url.origin === self.location.origin && !url.pathname.startsWith("/api/"),
+    )
+    .map((url) => `${url.pathname}${url.search}`);
+
+  await Promise.all([
+    cache.put("/", index.clone()),
+    cache.put("/index.html", index.clone()),
+    cache.addAll([...new Set([...SHELL.slice(2), ...recursos])]),
+  ]);
+}
+
 self.addEventListener("install", (event) => {
-  event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(SHELL)));
+  event.waitUntil(cachearAplicacionCompleta());
   self.skipWaiting();
 });
 
