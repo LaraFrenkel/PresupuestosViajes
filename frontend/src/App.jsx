@@ -5444,9 +5444,16 @@ export default function App() {
   });
   useEffect(() => {
     const expirada = () => setSesion(null);
+    const recuperarSinConexion = () => {
+      const usuario = localStorage.getItem("usuario");
+      if (usuario) setSesion({ usuario: JSON.parse(usuario) });
+    };
     window.addEventListener("brujula:sesion-expirada", expirada);
-    return () =>
+    window.addEventListener("offline", recuperarSinConexion);
+    return () => {
       window.removeEventListener("brujula:sesion-expirada", expirada);
+      window.removeEventListener("offline", recuperarSinConexion);
+    };
   }, []);
   useEffect(() => {
     const esNumero = (target) => target?.matches?.('input[type="number"]');
