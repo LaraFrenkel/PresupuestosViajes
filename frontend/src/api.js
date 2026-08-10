@@ -2,7 +2,6 @@ import {
   guardarOperacion,
   guardarRespuesta,
   guardarVersion,
-  borrarDatosLocales,
   leerRespuesta,
   leerVersion,
 } from "./offline-db.js";
@@ -61,9 +60,7 @@ export async function api(path, options = {}) {
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
     if (response.status === 401 && tieneSesion) {
-      await borrarDatosLocales().catch(() => undefined);
       localStorage.removeItem("token");
-      localStorage.removeItem("usuario");
       window.dispatchEvent(new Event("brujula:sesion-expirada"));
     }
     const detalles = Array.isArray(data.detalles)
