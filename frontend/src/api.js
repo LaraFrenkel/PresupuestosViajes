@@ -14,6 +14,15 @@ function persistirEnSegundoPlano(promesa) {
   void promesa.catch(() => undefined);
 }
 
+function admiteMutacionOffline(method, path) {
+  return (
+    (method === "POST" && /^\/viajes\/\d+\/finanzas\/gastos$/.test(path)) ||
+    (method === "PUT" && /^\/viajes\/\d+\/finanzas\/gastos\/\d+$/.test(path)) ||
+    (method === "POST" && /^\/viajes\/\d+\/traslados$/.test(path)) ||
+    (method === "PUT" && /^\/viajes\/\d+\/traslados\/\d+$/.test(path))
+  );
+}
+
 export async function api(path, options = {}) {
   const token = localStorage.getItem("token");
   const tieneSesion = Boolean(localStorage.getItem("usuario"));
@@ -43,6 +52,16 @@ export async function api(path, options = {}) {
     }
     const coincidencia = path.match(/^\/viajes\/(\d+)/);
     if (method !== "GET" && tieneSesion && coincidencia) {
+      if (!admiteMutacionOffline(method, path)) {
+        const mensaje =
+          "Esta acción necesita conexión a internet y no se guardó ningún cambio.";
+        window.dispatchEvent(
+          new CustomEvent("brujula:accion-requiere-conexion", {
+            detail: mensaje,
+          }),
+        );
+        throw new Error(mensaje);
+      }
       const idViaje = Number(coincidencia[1]);
       await guardarOperacion({
         idViaje,
