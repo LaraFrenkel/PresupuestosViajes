@@ -2515,6 +2515,33 @@ select {
   font-weight: 700;
 }
 
+.offline-action-warning {
+  position: fixed;
+  top: max(3.7rem, calc(env(safe-area-inset-top) + 3.7rem));
+  left: 50%;
+  z-index: 111;
+  width: min(560px, calc(100% - 1.5rem));
+  padding: 0.8rem 1rem;
+  transform: translateX(-50%);
+  border: 1px solid #b85b3e;
+  border-radius: 10px;
+  background: #fff0eb;
+  color: #7f321f;
+  box-shadow: 0 8px 24px rgba(23, 55, 53, 0.18);
+  text-align: center;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.offline-pending-note {
+  margin-bottom: 1rem;
+  padding: 0.75rem 0.9rem;
+  border-left: 4px solid #d99a32;
+  background: #fff4df;
+  color: #76500f;
+  font-size: 0.85rem;
+}
+
 .sync-indicator {
   display: flex;
   flex-wrap: wrap;

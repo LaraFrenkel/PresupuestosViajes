@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { api } from "./api.js";
 import {
   borrarDatosLocales,
+  guardarRespuesta,
   leerRespuesta,
   listarOperaciones,
 } from "./offline-db.js";
@@ -2927,6 +2928,27 @@ function Finanzas({ viaje, vista, onGoCurrencies }) {
   useEffect(() => {
     cargar();
   }, [viaje.idViaje]);
+  useEffect(() => {
+    const actualizar = (event) => {
+      if (Number(event.detail?.idViaje) === Number(viaje.idViaje))
+        setData(event.detail.data);
+    };
+    window.addEventListener("brujula:finanzas-locales", actualizar);
+    return () =>
+      window.removeEventListener("brujula:finanzas-locales", actualizar);
+  }, [viaje.idViaje]);
+  async function mostrarFinanzas(nuevosDatos) {
+    setData(nuevosDatos);
+    window.dispatchEvent(
+      new CustomEvent("brujula:finanzas-locales", {
+        detail: { idViaje: viaje.idViaje, data: nuevosDatos },
+      }),
+    );
+    await guardarRespuesta(
+      `/viajes/${viaje.idViaje}/finanzas`,
+      nuevosDatos,
+    ).catch(() => undefined);
+  }
   function toggle(id) {
     setSeleccionados((s) =>
       s.includes(id) ? s.filter((x) => x !== id) : [...s, id],
@@ -2959,28 +2981,57 @@ function Finanzas({ viaje, vista, onGoCurrencies }) {
           importe: decimal(fd.get(`asignacion-${p.idParticipante}`) || 0),
         }))
         .filter((x) => x.importe > 0);
+    const gastoEnviado = {
+      descripcion: fd.get("descripcion"),
+      categoria: fd.get("categoria"),
+      fecha: fd.get("fecha"),
+      importe,
+      moneda: fd.get("moneda"),
+      tipoDivision: tipo,
+      observaciones: fd.get("observaciones") || null,
+      pagadores,
+      asignaciones,
+    };
     try {
-      await api(
+      const resultado = await api(
         `/viajes/${viaje.idViaje}/finanzas/gastos${editandoGasto ? `/${editandoGasto.idGasto}` : ""}`,
         {
           method: editandoGasto ? "PUT" : "POST",
-          body: JSON.stringify({
-            descripcion: fd.get("descripcion"),
-            categoria: fd.get("categoria"),
-            fecha: fd.get("fecha"),
-            importe,
-            moneda: fd.get("moneda"),
-            tipoDivision: tipo,
-            observaciones: fd.get("observaciones") || null,
-            pagadores,
-            asignaciones,
-          }),
+          body: JSON.stringify(gastoEnviado),
         },
       );
+      if (resultado?.pendienteSincronizar) {
+        const nombreParticipante = new Map(
+          data.participantes.map((p) => [p.idParticipante, p.nombre]),
+        );
+        const gastoLocal = {
+          ...gastoEnviado,
+          idGasto: editandoGasto?.idGasto ?? -Date.now(),
+          pendienteSincronizar: true,
+          pagadores: pagadores.map((p) => ({
+            ...p,
+            nombre: nombreParticipante.get(p.idParticipante) || "Participante",
+          })),
+          asignaciones: asignaciones.map((a) => ({
+            ...a,
+            nombre: nombreParticipante.get(a.idParticipante) || "Participante",
+          })),
+        };
+        const nuevosDatos = {
+          ...data,
+          gastos: editandoGasto
+            ? data.gastos.map((g) =>
+                g.idGasto === editandoGasto.idGasto ? gastoLocal : g,
+              )
+            : [gastoLocal, ...data.gastos],
+        };
+        await mostrarFinanzas(nuevosDatos);
+      } else {
+        await mostrarFinanzas(resultado);
+      }
       setForm(false);
       setEditandoGasto(null);
       setSeleccionados([]);
-      await cargar();
     } catch (err) {
       setError(err.message);
     }
@@ -3058,6 +3109,12 @@ function Finanzas({ viaje, vista, onGoCurrencies }) {
           </button>
         </div>
         {error && <div className="alert">{error}</div>}
+        {data.gastos.some((g) => g.pendienteSincronizar) && (
+          <div className="offline-pending-note">
+            Los gastos pendientes ya están guardados en este dispositivo. Los
+            balances se recalcularán al recuperar la conexión.
+          </div>
+        )}
         {form && (
           <form
             key={editandoGasto?.idGasto || "nuevo"}
@@ -3224,6 +3281,9 @@ function Finanzas({ viaje, vista, onGoCurrencies }) {
             <article className="expense-row" key={g.idGasto}>
               <div>
                 <span className="status">{g.categoria}</span>
+                {g.pendienteSincronizar && (
+                  <span className="status pending">Pendiente de sincronizar</span>
+                )}
                 <h3>{g.descripcion}</h3>
                 <small>
                   {g.fecha} ·{" "}
@@ -3241,15 +3301,22 @@ function Finanzas({ viaje, vista, onGoCurrencies }) {
                 <small>Participaron</small>
                 <p>{g.asignaciones.map((a) => a.nombre).join(", ")}</p>
               </div>
-              <button className="text-button" onClick={() => editarGasto(g)}>
-                Editar
-              </button>
-              <button
-                className="text-button danger"
-                onClick={() => eliminarGasto(g)}
-              >
-                Eliminar
-              </button>
+              {!g.pendienteSincronizar && (
+                <>
+                  <button
+                    className="text-button"
+                    onClick={() => editarGasto(g)}
+                  >
+                    Editar
+                  </button>
+                  <button
+                    className="text-button danger"
+                    onClick={() => eliminarGasto(g)}
+                  >
+                    Eliminar
+                  </button>
+                </>
+              )}
             </article>
           ))}
         </div>
@@ -3869,13 +3936,17 @@ function Traslados({ viaje }) {
         fechaSalida: form.fechaSalida || null,
         fechaLlegada: form.fechaLlegada || null,
       };
-      setTraslados((actuales) =>
-        editando
-          ? actuales.map((item) =>
-              item.idTraslado === editando ? trasladoGuardado : item,
-            )
-          : [...actuales, trasladoGuardado],
-      );
+      const trasladosActualizados = editando
+        ? traslados.map((item) =>
+            item.idTraslado === editando ? trasladoGuardado : item,
+          )
+        : [...traslados, trasladoGuardado];
+      setTraslados(trasladosActualizados);
+      if (resultado?.pendienteSincronizar)
+        await guardarRespuesta(
+          `/viajes/${viaje.idViaje}/traslados`,
+          trasladosActualizados,
+        ).catch(() => undefined);
       setVisible(false);
       setEditando(null);
       if (!resultado?.pendienteSincronizar) void cargar();
@@ -5415,24 +5486,46 @@ function InstalacionApp() {
 
 function EstadoConexion() {
   const [conectada, setConectada] = useState(navigator.onLine);
+  const [aviso, setAviso] = useState("");
   useEffect(() => {
     const online = () => setConectada(true);
     const offline = () => setConectada(false);
     const resultado = (e) => setConectada(Boolean(e.detail));
+    const accionNoDisponible = (e) => {
+      setAviso(e.detail);
+      window.setTimeout(() => setAviso(""), 6000);
+    };
     window.addEventListener("online", online);
     window.addEventListener("offline", offline);
     window.addEventListener("brujula:conexion", resultado);
+    window.addEventListener(
+      "brujula:accion-requiere-conexion",
+      accionNoDisponible,
+    );
     return () => {
       window.removeEventListener("online", online);
       window.removeEventListener("offline", offline);
       window.removeEventListener("brujula:conexion", resultado);
+      window.removeEventListener(
+        "brujula:accion-requiere-conexion",
+        accionNoDisponible,
+      );
     };
   }, []);
-  if (conectada) return null;
+  if (conectada && !aviso) return null;
   return (
-    <div className="offline-status" role="status">
-      Sin conexión · mostrando la información guardada en este dispositivo
-    </div>
+    <>
+      {!conectada && (
+        <div className="offline-status" role="status">
+          Sin conexión · mostrando la información guardada en este dispositivo
+        </div>
+      )}
+      {aviso && (
+        <div className="offline-action-warning" role="alert">
+          {aviso}
+        </div>
+      )}
+    </>
   );
 }
 
